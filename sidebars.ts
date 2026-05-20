@@ -31,6 +31,7 @@ const sidebars: SidebarsConfig = {
       label: 'Webhooks',
       items: ['webhooks/overview', 'webhooks/events'],
     },
+    'security',
     {
       type: 'category',
       label: 'Guides',

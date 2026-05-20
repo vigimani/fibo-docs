@@ -11,6 +11,28 @@ import TabItem from '@theme/TabItem';
 This quickstart targets the production-shape API. The first cohort of integrators currently runs against a pre-production sandbox provisioned manually — [contact sales](https://fibo.io/contact) for credentials. Self-serve key minting via the dashboard ships at the **Sandbox + CLI admin** milestone.
 :::
 
+## Before you start
+
+This quickstart assumes a **React frontend**. The Fibo SDK is React-only at MVP; native iOS / Android / Vue / Svelte support is on the roadmap. If your stack is something else, the REST API documented under [API Reference](/docs/api-reference/introduction) is fully usable today — you'll just have to wire the user-signing UI yourself.
+
+You'll need:
+
+- **Node.js ≥ 20.0** (`node --version` to check). Lower versions are not tested and several transitive deps emit engine warnings.
+- **React 18 or 19** in your app.
+- **A React framework** — Next.js (Pages or App router), Vite + React, Remix, Astro with `client:only="react"`, or plain React (CRA / similar). See [Frameworks](/docs/sdk/installation#frameworks).
+- **A package manager** — npm, pnpm, or yarn. All three are tested.
+- **A server endpoint** for receiving Fibo webhooks. HTTPS-only — Fibo refuses to deliver to `http://`. For prototyping, an ngrok / Cloudflare Tunnel URL works.
+- **A Fibo API key pair** (`pk_test_*` + `sk_test_*`). Currently issued during onboarding — [contact sales](https://fibo.io/contact). Self-serve provisioning is in flight.
+
+If you're starting from a blank Next.js app:
+
+```bash
+npx create-next-app@latest my-fibo-app --typescript --app
+cd my-fibo-app
+```
+
+Skip this if you have an existing project.
+
 ## 1. Get your API keys
 
 Two key types are issued per environment (`test` and `live`):

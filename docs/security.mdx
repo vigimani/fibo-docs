@@ -1,0 +1,234 @@
+---
+title: Security
+description: The non-custodial threat model, where private keys actually live, and what Fibo can and cannot do — substantiated.
+sidebar_position: 6
+---
+
+This page exists because "non-custodial" is a claim, and claims need substantiation. If you're going to put Fibo in front of your users, you and your security team need to know exactly what's true and what's not. Read it once; come back when the next compliance review asks.
+
+## The promise
+
+Fibo is **non-custodial by construction**: at no point does Fibo (or anyone other than the end user) hold the cryptographic material required to move funds from a user's wallet. We orchestrate transactions, sponsor gas, build instructions, and route across providers — but every value-changing operation requires a signature produced by a private key the user controls, on the user's device.
+
+Three terms commonly conflated, separated:
+
+- **Custody** — who holds the private key. For all Fibo-provisioned wallets: a Trusted Execution Environment (TEE) operated by Privy, releasing the key only inside the enclave after end-user authentication. Not Fibo. Not your platform.
+- **Control** — who can authorize a transaction. The end user, by passing the authentication challenge their account is configured for (passkey by default, with optional MFA).
+- **Access** — who can read the wallet address, balance, and transaction history. Fibo, your platform, and any blockchain observer. Public blockchain data is, well, public.
+
+The non-custodial property protects the user against three failure modes:
+
+1. **Fibo goes out of business.** The user's keys are still in Privy's TEE. They sign into [privy.io](https://privy.io) with the same email or social login and export the private key to their own wallet software.
+2. **Fibo's backend is compromised.** An attacker who takes over Fibo's infrastructure can read what we read (addresses, transaction history, KYC status references) but cannot sign on behalf of users. They can, in the worst case, drain Fibo's gas tank — a Fibo problem, not a user-funds problem.
+3. **Your platform is compromised.** Same as above: addresses and metadata are exposed; user funds are not.
+
+## Where private keys live
+
+Embedded wallets are powered by [Privy](https://privy.io). The full security model is documented in [Privy's security overview](https://docs.privy.io/guide/security/) — the summary below traces the parts that matter for substantiating Fibo's non-custodial claim.
+
+### Generation
+
+Every wallet's private key is generated **inside a Trusted Execution Environment** — Privy uses AWS Nitro Enclaves and Intel SGX-class isolation. The generation step never produces a plaintext copy of the key outside the enclave. Even Privy's own operators cannot extract a user's key in plaintext; the operational tooling around the TEE is attested and audited.
+
+### Storage
+
+The key sits encrypted at rest inside a configuration that allows decryption only inside the enclave, gated on the user's authentication challenge. A break of the storage layer alone, without simultaneously compromising the enclave attestation and the user's auth factors, does not yield plaintext keys.
+
+### Signing
+
+When a signature is needed:
+
+1. Fibo's backend constructs the message to sign (EIP-7702 authorization, MEE quote hash, Solana V0 transaction, Bitcoin sighash).
+2. The Fibo React SDK passes the message to Privy's client SDK in the browser.
+3. Privy prompts the user for their authentication challenge (passkey, biometric, OAuth re-confirmation — configurable per tenant).
+4. The challenge result + the unsigned message are sent to Privy's signing service, which routes them into the TEE.
+5. The TEE verifies the auth, releases the key only inside the enclave, computes the signature, and returns the signature (not the key).
+6. The signature is returned to the SDK, then to Fibo's backend for submission.
+
+Steps 1–6 happen in seconds. The user's key never leaves the TEE in plaintext at any step.
+
+### Attestation
+
+Privy publishes [enclave attestation documents](https://docs.privy.io/guide/security/tee-architecture) that prove a given enclave is running the code its operators claim it's running. This is the cryptographic basis for "trust the TEE, not the operator" — a third party (including auditors, including us) can verify the code without trusting Privy operationally.
+
+### Recovery
+
+If a user loses access to their authentication device(s), Privy supports account recovery flows that the user must initiate — Fibo cannot recover on their behalf. The recovery flow is governed by Privy's policy (typically email + secondary factors) and remains under the user's control end-to-end. **Fibo cannot generate a signature for a user under any circumstance.**
+
+## What authenticates the user
+
+Privy supports a configurable set of login + signing factors per tenant. The defaults Fibo recommends:
+
+| Method | Use | Strength |
+|---|---|---|
+| Passkey (WebAuthn) | Default signing factor | Strong. Hardware-backed on most platforms (Face ID / Touch ID / Windows Hello / hardware key). Phishing-resistant. |
+| Email OTP | Login fallback | Moderate. Vulnerable to email account takeover; pair with MFA in high-risk scenarios. |
+| OAuth (Google / Apple / X / etc.) | Login | Inherits the IdP's security. Reasonable for consumer apps. |
+| MFA app (TOTP) | Optional second factor | Strong. Configure as required for high-value operations. |
+
+Tenants can require multiple factors for signing operations above a configurable USD threshold — useful for B2B contexts where individual user accounts may control significant balances.
+
+We do **not** recommend SMS as a factor; SIM-swap attacks make it weaker than the other options. Privy supports it; we don't enable it by default.
+
+## What Fibo can and cannot do
+
+Capability matrix. If something isn't on the "can" list, it isn't possible.
+
+### Fibo can
+
+- Construct transaction instructions for any chain it supports (swap calldata, allowances, bridge routes, yield deposits / withdrawals).
+- Submit signed transactions to MEE nodes, Solana RPC, or Bitcoin broadcast endpoints.
+- Sponsor gas from Fibo-controlled gas tanks (EVM via Biconomy MEE, Solana via a relay fee-payer).
+- Read on-chain state for any user wallet (addresses are public).
+- Emit webhooks to your registered endpoint when state changes occur.
+- Maintain a record of every user's `external_id`, addresses, transaction history, and KYC status references.
+
+### Fibo cannot
+
+- Sign on behalf of any user. The user's private key is never accessible to Fibo.
+- Freeze, lock, or seize user funds. We have no on-chain authority over user wallets.
+- Recover a user's account if they lose their authentication factors. Recovery is between the user and Privy.
+- Read the user's private key in plaintext. Neither can Privy's operators outside the TEE.
+- Bypass the user's authentication challenge. Every signature requires fresh user-side authorization.
+- Change Privy's TEE attestation without the user's awareness. The attestation is reproducible and verifiable by third parties.
+- Modify transaction parameters after the user has signed. EIP-7702 + MEE quote hash binding means the signature commits to the exact instructions.
+
+## Threat scenarios
+
+Concrete walk-throughs of the bad things that can happen and what they mean for funds.
+
+### Fibo backend compromise
+
+An attacker takes control of Fibo's backend servers, database, and API keys.
+
+- **What they can read**: every user's addresses, transaction history, KYC status references, your tenant configuration, your webhook secrets.
+- **What they can do on-chain**: nothing that requires a user signature. They can construct fraudulent quote responses and trick a user into signing — but the user still has to authenticate via Privy + passkey, and the signed payload is binding (an EIP-7702 authorization for "swap 100 USDC to ETH" cannot be silently turned into "transfer 100 USDC to attacker").
+- **What they can drain**: the Fibo gas tank, by triggering unnecessary transactions. This is a Fibo-side P0 incident, not a user-funds incident.
+- **Mitigation**: tenant-scoped API keys, key rotation, anomaly detection on gas tank burn rate, infrastructure isolation. We disclose any confirmed compromise per the incident response section below.
+
+### Privy compromise
+
+An attacker compromises Privy's infrastructure to the point of breaking the TEE attestation.
+
+- **What they can do**: with sufficient depth of compromise (TEE keys extracted, attestation forged), they could in principle sign on behalf of users.
+- **Realistic likelihood**: Privy's threat model is the same as any TEE-based service — bounded by Intel SGX / AWS Nitro security models, plus Privy's operational security. SOC 2 Type II audited; the public attestation flow gives third parties a verification path.
+- **What you do**: monitor Privy's security advisories. Any confirmed TEE compromise would be a multi-vendor industry-wide event.
+
+### End-user device compromise
+
+A user's device is malware-infected; the attacker has full control of the browser.
+
+- **What they can do**: trick the user into approving a malicious transaction. The user sees the passkey prompt; if they approve, the signature is genuine.
+- **Mitigation**: the user-facing UI in your app (and Privy's prompts) display the transaction details before approval. A user who reads "transferring $5000 to 0xBadAddress" and approves anyway is outside any technical mitigation. Education + UX clarity is the defense.
+
+### Supply chain attack on the SDK
+
+An attacker publishes a malicious version of `@fibo/react-sdk` (or a transitive dependency).
+
+- **Mitigation**: SDK releases are signed and pinned. The SDK has a small surface — it's a transport between your app and the Fibo backend, plus a thin wrapper over Privy's hooks. It does not perform business logic that could be subverted to produce signatures without user authorization (that lives in Privy's TEE).
+- **Defense in depth**: use lockfiles, pin versions, run `npm audit`. Subscribe to the Fibo security advisory list (TBD) for breaking changes.
+
+## The user export path
+
+If Fibo or Privy ceases to operate, or you simply decide to stop using Fibo for any reason, your users do not lose access to their funds.
+
+The export flow:
+
+1. The user logs into [privy.io](https://privy.io) with the same email / social account they used in your app.
+2. Privy's self-service export presents the user's wallets and offers a "Reveal private key" action, gated on the user's authentication.
+3. The user copies the private key into a wallet they control (MetaMask, Phantom, Sparrow for BTC, etc.) and resumes using their funds independently.
+
+This is documented in [Privy's export documentation](https://docs.privy.io/guide/wallets/embedded/export). The capability is provided by Privy directly to the user; Fibo cannot block, delay, or alter the export.
+
+**Recommendation for end users**: even without an immediate need, a user can export their key once after wallet creation, store it in a hardware wallet or paper backup, and continue using Fibo. The TEE-held key remains the day-to-day signer; the exported copy is a disaster recovery artifact under the user's full control.
+
+## What Fibo stores about end users
+
+Per-user data Fibo retains:
+
+| Field | Why we store it | Retention |
+|---|---|---|
+| Privy user ID | Cross-reference for SDK ↔ backend correlation | Lifetime of the tenant relationship |
+| `external_id` (your value) | So your DB can join with ours | Lifetime |
+| Email | Webhook payloads, support correspondence | Lifetime |
+| EVM / Solana / Bitcoin addresses | Indexing, balance reads | Lifetime |
+| KYC status + provider reference | Compliance gating on ramping flows | 5 years post-relationship (regulatory requirement on KYC records) |
+| Transaction history | Auditability, webhook replay, fee accounting | 7 years (financial record-keeping) |
+
+Fibo does **not** store:
+
+- Private keys (they're in Privy's TEE, not in our database).
+- Plaintext copies of user authentication factors (passkey credentials live on the user's device).
+- Card numbers, IBANs, or other payment instruments. Ramping providers (Monerium, Transak) handle these; Fibo never sees them.
+- KYC documents (Sumsub holds these; we hold the share token reference and status only).
+
+### GDPR posture
+
+Fibo acts as a **data processor** for the tenant (you), and a **data controller** for limited Fibo-internal data (gas tank metrics, etc.). The Data Processing Agreement (DPA) is signed at onboarding.
+
+Data subject rights:
+
+- **Right of access**: `GET /v1/users/{id}` returns the full record we hold.
+- **Right of erasure**: `DELETE /v1/users/{id}` removes the record subject to legal retention floors (KYC + transaction history retention may persist for the regulatory periods above; the record is locked and pseudonymized).
+- **Right of portability**: same as access; the JSON response is portable.
+- **Right of rectification**: `PATCH /v1/users/{id}` for fields you've populated.
+
+Tenant-level data lives in EU regions (Supabase eu-west-3); transit is TLS 1.3.
+
+## Provider security partners
+
+The security of the system depends on the security of every layer. Fibo's positioning is to select providers whose security posture is publicly auditable and whose threat models are mature.
+
+| Provider | Layer | Security posture |
+|---|---|---|
+| [Privy](https://privy.io) | Wallet keys + auth | SOC 2 Type II. TEE-based key custody (Intel SGX / AWS Nitro). [Public security overview](https://docs.privy.io/guide/security/). Reproducible enclave attestations. |
+| [Biconomy](https://biconomy.io) | EVM gasless (MEE) | Multiple audits — see [their audits page](https://docs.biconomy.io/security). MEE node operators are governed by a multi-sig. |
+| [LiFi](https://li.fi) | Cross-chain routing | Audited (Halborn, Trail of Bits per LiFi's public materials). Routes through audited bridges; Fibo can disable specific bridges per tenant if requested. |
+| [Aave](https://aave.com) | Lending protocol | Formally verified (Certora), bug bounty up to $1M. Governance via AAVE token holders. |
+| [Beefy](https://beefy.com) | Yield vaults | Audited per-strategy. Vault selection is curated; Fibo whitelists vaults rather than exposing the entire universe. |
+| [Monerium](https://monerium.com) | EUR ↔ EURe (opt-in) | EMI license under Icelandic FSA. EURe issuance reserved 1:1 in segregated accounts. |
+| [Transak](https://transak.com) | Card / bank ramping (opt-in) | Licensed across multiple jurisdictions; KYC handled by Transak. |
+| [Sumsub](https://sumsub.com) | KYC infrastructure | ISO 27001, SOC 2. Sumsub is the integrator's KYC vendor if opted into; Fibo holds share token references only. |
+
+Provider links go to each vendor's published security materials so you can verify claims independently.
+
+## Compliance and certifications
+
+Current state:
+
+- **SOC 2 Type II**: in progress. Target initial report Q4 2026.
+- **ISO 27001**: under evaluation. Decision based on enterprise customer demand.
+- **MiCA positioning**: Fibo operates as a non-custodial software provider. Position formalized with EU counsel; full opinion available under NDA.
+- **EU data residency**: tenant data is hosted in eu-west-3 (Supabase). US-region option available on request for US customers.
+- **DPA**: signed at onboarding; updated as the sub-processor list evolves.
+
+We update this section as new certifications are obtained.
+
+## Incident response
+
+Severity levels and SLAs:
+
+| Severity | Definition | Customer notification |
+|---|---|---|
+| P0 | Confirmed unauthorized access to private keys, customer data exfiltration, or material service outage > 1 hour | Within 4 hours of confirmation |
+| P1 | Suspected compromise, partial service degradation, or vulnerability in a critical dependency | Within 24 hours |
+| P2 | Vulnerability in a non-critical dependency or component | Within 7 days, batched into the monthly security summary |
+
+Notifications go to your designated security contact (set at onboarding) via email + webhook (`tenant.security_advisory` event, planned).
+
+Post-incident, we publish a written incident report within 30 days for any P0 or P1, covering: timeline, root cause, scope of impact, remediation steps, and preventative measures.
+
+## Reporting a vulnerability
+
+If you find a security issue in Fibo's infrastructure, SDK, or documentation: **security@fibo.io**.
+
+- **PGP key**: TBD (will be published before our first paying production customer).
+- **Scope**: anything under `*.fibo.io`, `@fibo/*` npm packages, and the Fibo backend at `api.fibo.io`.
+- **Safe harbor**: good-faith research is welcome. We commit to not pursue legal action against researchers who report responsibly.
+- **Bug bounty**: program launches with the SOC 2 Type II audit. Until then, we acknowledge responsible disclosure and offer credit + a contact-of-record relationship with the security team.
+
+For issues in a sub-provider (Privy, Biconomy, LiFi, Aave, Beefy, Monerium, Transak, Sumsub), please report to them directly using their published security channels — we'll coordinate the cross-vendor response as needed.
+
+---
+
+_This page is maintained as the substantive answer to "how does non-custodial actually work at Fibo". If you have a security question this page doesn't answer, please [contact us](https://fibo.io/contact) — we'll either answer privately, expand this page, or both._
