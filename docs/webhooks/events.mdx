@@ -4,8 +4,8 @@ description: All Fibo webhook event types, what triggers them, and a sample payl
 sidebar_position: 2
 ---
 
-:::warning
-Webhook delivery ships at the Webhook emitter milestone. This catalog is the planned event surface for v1.
+:::info Pre-release
+Webhook delivery ships at **M3** — see [/docs/status](/docs/status). This catalog is the v1 event surface; payload shapes are final so you can write handlers now.
 :::
 
 ## Conventions
@@ -76,7 +76,7 @@ Webhook delivery ships at the Webhook emitter milestone. This catalog is the pla
 
 | Event | When it fires |
 |---|---|
-| `tx.quoted` | A user accepted a quote via `POST /v1/quote`. Useful for tracking funnel drop-off. |
+| `tx.prepared` | `POST /v1/prepare-tx` succeeded — instructions built, user about to sign. Useful for tracking funnel drop-off between "user clicked" and "user signed". |
 | `tx.submitted` | The user signed and Fibo submitted to the network (MEE / Solana relay / BTC broadcast). |
 | `tx.confirmed` | The transaction is final on its source chain (or all chains, for cross-chain). |
 | `tx.failed` | The transaction failed on-chain or in the orchestration pipeline. `data.failure_reason` carries the cause. |

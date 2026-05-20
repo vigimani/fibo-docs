@@ -4,8 +4,18 @@ description: Install @fibo/react-sdk, wrap your app, and start using the hooks.
 sidebar_position: 1
 ---
 
-:::warning
-The `@fibo/react-sdk` package is in pre-release. Today the PoC ships a thin wrapper directly against the Fibo backend; the published npm package lands at the Sandbox + CLI admin milestone. The shapes below are the production contract.
+:::info Pre-release
+Public npm publication of `@fibo/react-sdk` ships at **M5** — see [/docs/status](/docs/status). Today, onboarding hands you a pinned tarball URL you reference directly in `package.json`:
+
+```json
+{
+  "dependencies": {
+    "@fibo/react-sdk": "https://cdn.fibo.io/sdk/react-sdk-0.x.y.tgz"
+  }
+}
+```
+
+Drop-in upgrade to `"@fibo/react-sdk": "^1.0.0"` when the public registry version ships. The hooks API below is the production contract.
 :::
 
 ## Install

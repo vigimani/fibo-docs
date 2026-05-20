@@ -1,0 +1,54 @@
+---
+title: Status & roadmap
+description: What works today, what's shipping next, and how to interpret the rest of these docs.
+sidebar_position: 3
+---
+
+Fibo is in active development. This page is the honest reference for what's actually wired today vs. what the rest of the docs is *describing* but not yet *delivering*. Read it before estimating an integration.
+
+## What works today
+
+- **Backend orchestration core**: tenant model, transaction persistence in Postgres (RLS-hardened), gasless EVM swap end-to-end (LiFi route + Biconomy MEE + EIP-7702 user-level delegation), Solana backend fee-payer co-signature path, transaction state machine.
+- **The 6 endpoints flagged "Live"** in [API Reference](/docs/api-reference/introduction): `POST /v1/quote`, `POST /v1/prepare-tx`, `POST /v1/submit`, `POST /v1/execute-signed-quote`, `GET /v1/transactions/{id}`, plus the bearer-token auth layer that fronts them. Accessible against a manually-provisioned sandbox.
+- **Reference React frontend**: an end-to-end working PoC web app that exercises the full quote → prepare → 2-signature → execute → confirmation flow. We share its code with onboarding integrators.
+- **The full security and architecture story** — what's in the [Security](/docs/security) and [Architecture](/docs/concepts/architecture) pages is stable and reviewable today.
+
+## What's in flight
+
+| Milestone | What it ships | Target |
+|---|---|---|
+| **M2** — API key middleware | Self-serve `pk_*` / `sk_*` minting + revocation + tenant scoping enforced in Fastify | Q2 2026 |
+| **M3** — Webhook emitter | `wallet.*`, `tx.*`, `kyc.*` events with HMAC-SHA256 signing, exponential retry, replay & backfill API | Q2 2026 |
+| **M4** — Usage metering | Per-tenant monthly counters (active users, wallets created, tx count, USD volume) for billing | Q3 2026 |
+| **M5** — Sandbox + dashboard + CLI | Dedicated `api.sandbox.fibo.io`, web dashboard, `fibo` CLI for key + endpoint management, public npm publication of `@fibo/react-sdk` | Q3 2026 |
+
+Dates are best-effort. We ship when the work is right; we publish status changes on the [blog](/blog).
+
+## What's "documented but not yet there"
+
+These surfaces appear in the docs as production-shape because the contract is finalized — but the implementation isn't fully wired yet. Each carries a `:::info Pre-release` banner with the milestone it ships in:
+
+| Surface | Today | Lands in |
+|---|---|---|
+| `@fibo/react-sdk` on npm | Distributed as a pinned tarball to the first cohort. Contact sales for access. | M5 |
+| Dashboard UI (key rotation, webhook config, replay) | All admin operations are via API call or via the Fibo team. | M5 |
+| `api.sandbox.fibo.io` (dedicated sandbox base URL) | Sandbox runs against the same backend with `_test_` keys. | M5 |
+| Self-serve key minting | White-glove onboarding: email within 1 business day with `pk_test_*` + `sk_test_*` + webhook setup. | M2 |
+| Webhook endpoint registration (`POST /v1/webhook-endpoints`) | Endpoints + signing secret set up by the Fibo team during onboarding. | M3 |
+| `wallet.created`, `tx.confirmed` and other events | Not yet emitted; payload contracts published so you can write the handler now. | M3 |
+
+## What's on the longer-term roadmap
+
+- **React Native SDK** — same hook API as `@fibo/react-sdk`. Ships after M5.
+- **SOC 2 Type II** — initial Type II report targeting Q4 2026.
+- **Additional ramping connectors** — Stripe Onramp, Mercuryo, Mt Pelerin (each shipped as an opt-in `@fibo/react-sdk/<provider>` sub-export).
+- **Cross-provider ramp routing** — pick the cheapest provider per user / amount / currency, automatically.
+- **Additional chains** — Linea, zkSync Era, Mantle, Berachain on the radar; on-request only at this stage.
+
+## How to interpret the existing docs
+
+Most pages describe production-shape behavior — the contracts are finalized so you can write integration code against them now. Where a feature is in the "documented but not yet there" table above, the relevant page carries an `:::info Pre-release` banner that links back here.
+
+If you're evaluating Fibo today, the trade-off is honest: **the architecture and security model are stable and reviewable now**, but you'll need to coordinate with us for credentials, webhook endpoints, and SDK access until M5 lands. Current integrators are comfortable with that — the white-glove path resolves any setup question within a business day.
+
+Questions? [Contact sales](https://fibo.io/contact) or read the [introduction](/docs/introduction) to start.

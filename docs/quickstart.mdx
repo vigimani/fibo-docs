@@ -7,8 +7,8 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::warning
-This quickstart targets the production-shape API. The first cohort of integrators currently runs against a pre-production sandbox provisioned manually — [contact sales](https://fibo.io/contact) for credentials. Self-serve key minting via the dashboard ships at the **Sandbox + CLI admin** milestone.
+:::info Pre-release
+This quickstart targets the production-shape API. Self-serve key minting and the npm package are still in flight — see [/docs/status](/docs/status) for what's wired today vs. shipping in M2/M5. The white-glove onboarding path delivers `pk_test_*` + `sk_test_*` + a tarball SDK within 1 business day; [contact sales](https://fibo.io/contact).
 :::
 
 ## Before you start
@@ -56,7 +56,11 @@ FIBO_SECRET_KEY=sk_test_xxx
 npm install @fibo/react-sdk
 ```
 
-The SDK has Privy as a transitive dependency — you don't need to install or configure Privy yourself ([ADR 0003](https://github.com/vigimani/fibo-saas/blob/main/docs/adr/0003-privy-as-transitive-dep-in-sdk.md)).
+:::info Pre-release
+The npm package is published to a private registry today; public npm publication targets M5. Onboarding gives you a pinned tarball URL you can use in `package.json` as `"@fibo/react-sdk": "https://cdn.fibo.io/sdk/..."`. Drop-in replacement when the public package ships.
+:::
+
+The SDK has Privy as a transitive dependency — you don't need to install or configure Privy yourself.
 
 ## 3. Wrap your app
 
@@ -97,10 +101,22 @@ export default function App() {
 
     function SwapWidget() {
       const { quote, swap } = useFiboSwap();
-      // see /docs/api-reference/introduction for the full payload shape
-      return <button onClick={() => swap(quote)}>Swap</button>;
+
+      const handleSwap = async () => {
+        // 1. Ask Fibo for a route + fee quote (returns within ~1s)
+        const q = await quote({
+          source:      { currency: 'USDC', chain_id: 8453, amount: '100' },
+          destination: { currency: 'ETH',  chain_id: 8453 },
+        });
+        // 2. Execute it — Privy prompts the user to sign.
+        await swap(q);
+      };
+
+      return <button onClick={handleSwap}>Swap 100 USDC → ETH</button>;
     }
     ```
+
+    See [your first swap](/docs/guides/first-swap) for the full UX (quote breakdown, error states, confirmation).
   </TabItem>
   <TabItem value="webhook" label="Listen for events (server)">
     ```ts
