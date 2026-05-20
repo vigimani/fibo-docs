@@ -4,8 +4,8 @@ description: How Fibo delivers events to your server — retry semantics, orderi
 sidebar_position: 1
 ---
 
-:::info Pre-release
-Webhook delivery ships at **M3** — see [/docs/status](/docs/status). The `POST /v1/webhook-endpoints` endpoint shown below ships in M3 too; today, endpoint URL + signing secret are configured by the Fibo team during onboarding. Replay and `GET /v1/webhook-events` ship at the same time.
+:::info Webhook coverage
+Delivery infrastructure (HMAC signing, exponential retry, replay, `POST /v1/webhook-endpoints`) is **live as of M3** — see [API reference](/docs/api-reference/webhook-endpoints/create). The event catalog below reflects what's actually emitted today vs. what's planned: transaction events (`tx.prepared`, `tx.submitted`, `tx.failed`) are wired; wallet / KYC / API-key events ship as the corresponding orchestration paths land.
 :::
 
 ## What webhooks do

@@ -1,0 +1,49 @@
+---
+title: Revoke a webhook endpoint
+description: DELETE /v1/webhook-endpoints/{id} — soft-delete so it stops receiving events immediately.
+sidebar_position: 3
+---
+
+Soft-delete an endpoint. Effects are **immediate**:
+
+- New events stop being queued for this endpoint.
+- Pending deliveries already queued (`saas_webhook_events` rows with `delivery_status: 'pending'` and `webhook_endpoint_id` pointing here) are marked `abandoned` on their next worker tick.
+- The row is retained for 90 days of audit visibility before hard-deletion.
+
+```
+DELETE /v1/webhook-endpoints/{id}
+```
+
+## Authentication
+
+Requires `sk_*` for the same tenant, or admin token.
+
+## Path parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | UUID | The endpoint to delete. |
+
+## Response
+
+`204 No Content`. No body.
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid_request` | `id` is not a UUID. |
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+| 404 | `not_found` | Endpoint doesn't exist, already deleted, or belongs to another tenant. |
+
+## curl
+
+```bash
+curl -X DELETE https://api.fibo.io/v1/webhook-endpoints/9a3e7d8b-… \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+## What happens to inflight deliveries
+
+Each `saas_webhook_events` row carries its own `webhook_endpoint_id` from the moment the event is emitted. When you revoke the endpoint, the worker's next tick (within 5 seconds) marks any pending events for this endpoint as `abandoned`. They remain queryable via [`GET /v1/webhook-events`](/docs/api-reference/webhook-events/list) for replay against a different endpoint if needed.

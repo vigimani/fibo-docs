@@ -1,0 +1,78 @@
+---
+title: Replay a webhook event
+description: POST /v1/webhook-events/{id}/replay — re-queue an event for immediate delivery.
+sidebar_position: 2
+---
+
+Re-queue a previously-emitted event for immediate delivery. Useful when:
+
+- Your endpoint was down for hours and some events were marked `abandoned`.
+- You're adding a new event-type handler and want to backfill historic data.
+- A delivered event needs to be re-processed (e.g., your DB write failed but Fibo saw 2xx).
+
+```
+POST /v1/webhook-events/{id}/replay
+```
+
+The replay:
+
+- Resets `delivery_status` to `pending`
+- Resets `attempts` to `0`
+- Sets `next_attempt_at` to now (delivery happens within ~5s)
+- Clears `delivered_at`
+
+Carries the **same `event_id`** as the original delivery, so your idempotency check in the handler will skip it if you've already processed it — exactly the behaviour you want.
+
+## Authentication
+
+Requires `sk_*` for the same tenant, or admin token.
+
+## Path parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | UUID | Delivery row id from [`GET /v1/webhook-events`](/docs/api-reference/webhook-events/list). |
+
+## Response
+
+`202 Accepted`:
+
+```json
+{
+  "id": "evt_2k4j…",
+  "delivery_status": "pending",
+  "attempts": 0,
+  "next_attempt_at": "2026-05-20T16:45:00.123Z"
+}
+```
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid_request` | `id` is not a UUID. |
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+| 404 | `not_found` | Event doesn't exist or belongs to another tenant. |
+
+## curl
+
+```bash
+curl -X POST https://api.fibo.io/v1/webhook-events/<event-uuid>/replay \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+## Bulk replay
+
+There is no bulk-replay endpoint in v1. To replay many events, iterate the list:
+
+```bash
+# Re-fire every abandoned event from a specific outage window
+curl "https://api.fibo.io/v1/webhook-events?status=abandoned&from=2026-05-19T16:00:00Z" \
+  -H "Authorization: Bearer sk_test_..." | \
+  jq -r '.data[].id' | \
+  xargs -I{} curl -X POST "https://api.fibo.io/v1/webhook-events/{}/replay" \
+    -H "Authorization: Bearer sk_test_..."
+```
+
+A native bulk endpoint ships in a later milestone if integrator demand justifies it.

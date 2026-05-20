@@ -1,0 +1,67 @@
+---
+title: List webhook endpoints
+description: GET /v1/webhook-endpoints — list active endpoints for the current tenant.
+sidebar_position: 2
+---
+
+Return every active (not soft-deleted) webhook endpoint for the calling tenant. Secrets are never exposed — only the URL, environment, enabled-events filter, and `secret_set: true` to confirm one is configured.
+
+```
+GET /v1/webhook-endpoints
+```
+
+## Authentication
+
+Requires `sk_*` or admin token.
+
+## Response
+
+`200 OK`:
+
+```json
+{
+  "data": [
+    {
+      "id": "9a3e7d8b-…",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "url": "https://your-app.example.com/fibo/webhooks",
+      "enabled_events": ["*"],
+      "environment": "test",
+      "name": "Staging backend handler",
+      "secret_set": true,
+      "rotation_pending": false,
+      "created_at": "2026-05-20T16:00:00.000Z",
+      "updated_at": "2026-05-20T16:00:00.000Z"
+    }
+  ]
+}
+```
+
+### Fields
+
+| Field | Meaning |
+|---|---|
+| `secret_set` | Always `true` for endpoints in the response — the column is NOT NULL. Reserved for forward compatibility. |
+| `rotation_pending` | `true` if a `rotate-secret` was called and `finalize-rotation` hasn't been called yet. While `true`, deliveries are signed with **both** secrets (`v1` + `v1_prev` in the header). |
+
+## Get one
+
+```
+GET /v1/webhook-endpoints/{id}
+```
+
+Same auth + response shape as the list, returns one row. `404 not_found` if missing, deleted, or outside your tenant.
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+
+## curl
+
+```bash
+curl https://api.fibo.io/v1/webhook-endpoints \
+  -H "Authorization: Bearer sk_test_..."
+```

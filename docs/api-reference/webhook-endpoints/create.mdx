@@ -1,0 +1,87 @@
+---
+title: Create a webhook endpoint
+description: POST /v1/webhook-endpoints — register an HTTPS endpoint to receive events for your tenant.
+sidebar_position: 1
+---
+
+Register an HTTPS endpoint where Fibo will POST events. Returns the **plaintext signing secret once** — the database keeps only the secret itself for signing future deliveries, but the response is your only chance to capture it for your verification handler.
+
+```
+POST /v1/webhook-endpoints
+```
+
+## Authentication
+
+Requires a **secret key** (`sk_*`) or the admin token.
+
+## Request
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `url` | string (HTTPS only) | Yes | Where to POST events. Must start with `https://` — `http://` is rejected with 400. |
+| `environment` | `"test"` &#124; `"live"` | Default `"test"` | Endpoints only receive events whose `livemode` matches. |
+| `enabled_events` | string[] | Default `["*"]` | Glob patterns. `"*"` = all events. `"tx.*"` = every event in the `tx` namespace. Exact match (`"tx.confirmed"`) also works. |
+| `name` | string (≤128) | No | Human label. Visible in the dashboard and `GET /v1/webhook-endpoints`. |
+
+```http
+POST /v1/webhook-endpoints HTTP/1.1
+Host: api.fibo.io
+Authorization: Bearer sk_test_…
+Content-Type: application/json
+
+{
+  "url": "https://your-app.example.com/fibo/webhooks",
+  "environment": "test",
+  "enabled_events": ["tx.*", "wallet.created", "wallet.funded"],
+  "name": "Staging backend handler"
+}
+```
+
+## Response
+
+`201 Created`:
+
+```json
+{
+  "id": "9a3e7d8b-…",
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "url": "https://your-app.example.com/fibo/webhooks",
+  "secret": "f0e1d2c3b4a59687786958473625140312345678abcd...",
+  "enabled_events": ["tx.*", "wallet.created", "wallet.funded"],
+  "environment": "test",
+  "name": "Staging backend handler",
+  "created_at": "2026-05-20T16:00:00.000Z"
+}
+```
+
+:::warning Capture `secret` now
+The `secret` field is the only place the plaintext appears. Subsequent reads (`GET /v1/webhook-endpoints`) only return `secret_set: true`. Store it in your server environment alongside your `sk_*`. Loss = mandatory rotation via [`/v1/webhook-endpoints/{id}/rotate-secret`](/docs/api-reference/webhook-endpoints/rotate-secret).
+:::
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid_request` | Missing / malformed field, or URL is not HTTPS. |
+| 401 | `unauthenticated` | No bearer or revoked key. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+
+## curl
+
+```bash
+curl -X POST https://api.fibo.io/v1/webhook-endpoints \
+  -H "Authorization: Bearer sk_test_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-app.example.com/fibo/webhooks",
+    "enabled_events": ["*"]
+  }'
+```
+
+## Local development
+
+For testing webhook delivery against `localhost` (which is not HTTPS-accessible from Fibo's backend), use a tunnel:
+
+- [ngrok](https://ngrok.com): `ngrok http 3000` → register the `https://*.ngrok-free.app` URL
+- [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/): equivalent
+- Mock by replaying past events from the dashboard against your local handler (M5)

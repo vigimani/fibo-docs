@@ -1,0 +1,40 @@
+---
+title: Finalize secret rotation
+description: POST /v1/webhook-endpoints/{id}/finalize-rotation — clear the previous secret after a successful rotation deploy.
+sidebar_position: 5
+---
+
+Clear the `secret_previous` column on an endpoint after you've confirmed the new secret (from [`rotate-secret`](/docs/api-reference/webhook-endpoints/rotate-secret)) is working on your server. After this call:
+
+- The `X-Fibo-Signature` header on future deliveries only includes `v1=<current>` (no `v1_prev=`).
+- Your verifier should drop the old secret from any "accept either" logic.
+
+```
+POST /v1/webhook-endpoints/{id}/finalize-rotation
+```
+
+## Authentication
+
+Requires `sk_*` for the same tenant, or admin token.
+
+## Response
+
+`204 No Content`.
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid_request` | `id` is not a UUID. |
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+| 404 | `not_found` | Endpoint doesn't exist, deleted, or in another tenant. |
+
+Calling finalize on an endpoint where `rotation_pending: false` (no rotation in progress) is a no-op — still returns 204. Idempotent.
+
+## curl
+
+```bash
+curl -X POST https://api.fibo.io/v1/webhook-endpoints/9a3e7d8b-…/finalize-rotation \
+  -H "Authorization: Bearer sk_test_..."
+```

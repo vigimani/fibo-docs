@@ -1,0 +1,90 @@
+---
+title: List webhook events
+description: GET /v1/webhook-events — read the delivery log with filters on type, status, and time window.
+sidebar_position: 1
+---
+
+Return delivery records for the current tenant. Each record represents one (event, endpoint) pair — if a tenant has 2 endpoints and emits one event, this returns 2 rows.
+
+```
+GET /v1/webhook-events
+```
+
+## Authentication
+
+Requires `sk_*` or admin token.
+
+## Query parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `event_type` | string | Exact match on the event type (e.g., `tx.submitted`). No glob support here — for "all tx events" pull two filters or `event_type=tx.*` (planned for a future iteration). |
+| `status` | `pending` &#124; `delivered` &#124; `failed` &#124; `abandoned` | Filter by current delivery state. `failed` is in-flight (will retry); `abandoned` exhausted the 7-attempt budget. |
+| `from` | ISO-8601 | Lower bound on `created_at`. |
+| `limit` | int (1–200) | Default 50. |
+
+```http
+GET /v1/webhook-events?event_type=tx.submitted&status=delivered&from=2026-05-20T00:00:00Z HTTP/1.1
+Host: api.fibo.io
+Authorization: Bearer sk_test_…
+```
+
+## Response
+
+`200 OK`:
+
+```json
+{
+  "data": [
+    {
+      "id": "evt_2k4j…",
+      "tenant_id": "00000000-…",
+      "webhook_endpoint_id": "9a3e7d8b-…",
+      "event_type": "tx.submitted",
+      "delivery_status": "delivered",
+      "attempts": 1,
+      "next_attempt_at": null,
+      "delivered_at": "2026-05-20T16:32:12.123Z",
+      "last_response": {
+        "status": 204,
+        "request_id": "req_a1b2c3…"
+      },
+      "created_at": "2026-05-20T16:32:10.000Z"
+    }
+  ]
+}
+```
+
+### Fields
+
+| Field | Meaning |
+|---|---|
+| `id` | UUID of the delivery row. Pass this to [replay](/docs/api-reference/webhook-events/replay). |
+| `attempts` | Number of HTTP POSTs attempted so far. `0` until the worker first tries. |
+| `next_attempt_at` | When the worker will try again. `null` after `delivered` or `abandoned`. |
+| `last_response.status` | HTTP status code of the last attempt (`2xx` for delivered; non-2xx, timeout, or DNS error otherwise). |
+| `last_response.request_id` | `X-Fibo-Request-Id` header sent with the last attempt. Useful for cross-referencing your server logs. |
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid_request` | Bad `from` timestamp or `limit` out of range. |
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+
+## curl
+
+```bash
+# Recent failures only
+curl "https://api.fibo.io/v1/webhook-events?status=failed&limit=20" \
+  -H "Authorization: Bearer sk_test_..."
+
+# All tx.failed events in the last 24h
+curl "https://api.fibo.io/v1/webhook-events?event_type=tx.failed&from=2026-05-19T16:00:00Z" \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+## Retention
+
+Events older than 90 days are hard-deleted. Anything in this window — delivered, failed, or abandoned — remains queryable + [replayable](/docs/api-reference/webhook-events/replay).

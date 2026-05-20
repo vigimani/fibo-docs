@@ -4,8 +4,8 @@ description: All Fibo webhook event types, what triggers them, and a sample payl
 sidebar_position: 2
 ---
 
-:::info Pre-release
-Webhook delivery ships at **M3** — see [/docs/status](/docs/status). This catalog is the v1 event surface; payload shapes are final so you can write handlers now.
+:::info Event coverage today
+Webhook delivery is **live (M3)**. Transaction events (`tx.prepared`, `tx.submitted`, `tx.failed`) emit today as the corresponding API calls succeed. Wallet, KYC, API-key, and tenant events are documented for the v1 contract but emit only as their orchestration paths land — each row in the catalog below marks its status. Subscribe with `["*"]` and your handler will start receiving the additional event types automatically as they go live.
 :::
 
 ## Conventions
@@ -17,11 +17,11 @@ Webhook delivery ships at **M3** — see [/docs/status](/docs/status). This cata
 
 ## Wallet events
 
-| Event | When it fires |
-|---|---|
-| `wallet.created` | First time a user's embedded wallets are provisioned (typically first login). Fires once per chain family. |
-| `wallet.funded` | Fibo's indexer detects an incoming transfer to one of the user's addresses. Useful for unlocking features once the user has funds. |
-| `wallet.exported` | The user used Privy's self-service export to extract their private key. Informational; their wallets remain functional within Fibo afterward. |
+| Event | Status | When it fires |
+|---|---|---|
+| `wallet.created` | Roadmap | First time a user's embedded wallets are provisioned (typically first login). Fires once per chain family. Requires the wallet provisioning orchestration (Phase 1). |
+| `wallet.funded` | Roadmap | Fibo's indexer detects an incoming transfer to one of the user's addresses. Useful for unlocking features once the user has funds. Requires the deposit indexer. |
+| `wallet.exported` | Roadmap | The user used Privy's self-service export to extract their private key. Informational; their wallets remain functional within Fibo afterward. |
 
 <details>
 <summary>Sample `wallet.created`</summary>
@@ -74,13 +74,13 @@ Webhook delivery ships at **M3** — see [/docs/status](/docs/status). This cata
 
 ## Transaction events
 
-| Event | When it fires |
-|---|---|
-| `tx.prepared` | `POST /v1/prepare-tx` succeeded — instructions built, user about to sign. Useful for tracking funnel drop-off between "user clicked" and "user signed". |
-| `tx.submitted` | The user signed and Fibo submitted to the network (MEE / Solana relay / BTC broadcast). |
-| `tx.confirmed` | The transaction is final on its source chain (or all chains, for cross-chain). |
-| `tx.failed` | The transaction failed on-chain or in the orchestration pipeline. `data.failure_reason` carries the cause. |
-| `tx.expired` | A prepared transaction was never submitted within its TTL and was discarded. |
+| Event | Status | When it fires |
+|---|---|---|
+| `tx.prepared` | **Live (M3)** | `POST /v1/prepare-tx` succeeded — instructions built, user about to sign. Useful for tracking funnel drop-off between "user clicked" and "user signed". |
+| `tx.submitted` | **Live (M3)** | The user signed and Fibo submitted to the network (MEE super-tx). |
+| `tx.failed` | **Live (M3)** | The transaction failed in the orchestration pipeline. `data.failure_reason` carries the cause. `data.stage` indicates where (e.g., `mee_quote`, `mee_execute`). |
+| `tx.confirmed` | Roadmap | The transaction is final on its source chain (or all chains, for cross-chain). Requires the on-chain watcher service; lands with the metering milestone. |
+| `tx.expired` | Roadmap | A prepared transaction was never submitted within its TTL and was discarded. Requires the TTL sweeper. |
 
 <details>
 <summary>Sample `tx.confirmed`</summary>

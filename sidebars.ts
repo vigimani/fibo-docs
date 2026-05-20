@@ -61,6 +61,25 @@ const sidebars: SidebarsConfig = {
             'api-reference/api-keys/rotate',
           ],
         },
+        {
+          type: 'category',
+          label: 'Webhook endpoints',
+          items: [
+            'api-reference/webhook-endpoints/create',
+            'api-reference/webhook-endpoints/list',
+            'api-reference/webhook-endpoints/revoke',
+            'api-reference/webhook-endpoints/rotate-secret',
+            'api-reference/webhook-endpoints/finalize-rotation',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Webhook events',
+          items: [
+            'api-reference/webhook-events/list',
+            'api-reference/webhook-events/replay',
+          ],
+        },
       ],
     },
   ],

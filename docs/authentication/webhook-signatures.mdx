@@ -7,8 +7,8 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::info Pre-release
-Webhook delivery + signing ships at **M3** — see [/docs/status](/docs/status). Until then, your webhook endpoint URL and signing secret are set up by the Fibo team during onboarding; you can write and test the verification handler below against the published contract.
+:::info Self-serve via API
+Webhook signing is **live (M3)** — register endpoints via [`POST /v1/webhook-endpoints`](/docs/api-reference/webhook-endpoints/create) and the signing secret is returned once. The dashboard UI for endpoint management ships at M5.
 :::
 
 ## Why this matters
@@ -29,6 +29,25 @@ X-Fibo-Signature: t=1716212345,v1=4f7a3b2e9c8d1a6f5e4b3a2d1c0b9a8e7f6e5d4c3b2a19
 
 - `t` — Unix timestamp (seconds) when the signature was computed. Reject anything older than 5 minutes to prevent replay.
 - `v1` — Hex-encoded HMAC-SHA256(`{secret}`, `{t}.{body}`).
+
+### During a rotation window
+
+If you called [`POST /v1/webhook-endpoints/{id}/rotate-secret`](/docs/api-reference/webhook-endpoints/rotate-secret) and haven't yet finalized, the header carries an additional component signed with the previous secret:
+
+```
+X-Fibo-Signature: t=1716212345,v1=<hash_with_new>,v1_prev=<hash_with_previous>
+```
+
+Your verifier should accept either:
+
+```ts
+const ok =
+  hmacEqual(req.body, sig.v1, NEW_SECRET) ||
+  (sig.v1_prev !== undefined &&
+   hmacEqual(req.body, sig.v1_prev, OLD_SECRET));
+```
+
+Once you call [`POST /v1/webhook-endpoints/{id}/finalize-rotation`](/docs/api-reference/webhook-endpoints/finalize-rotation), the `v1_prev` component disappears.
 
 Constant-time compare the computed signature against `v1`. **Do not use `==`** — timing attacks are within reach of a determined adversary.
 
