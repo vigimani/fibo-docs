@@ -1,0 +1,58 @@
+---
+title: Revoke an API key
+description: DELETE /v1/api-keys/{id} — immediately invalidate a key without affecting other keys for the same tenant.
+sidebar_position: 3
+---
+
+Revoke a single API key. Past requests authenticated with it remain valid; only future requests are rejected starting at the moment of the call.
+
+```
+DELETE /v1/api-keys/{id}
+```
+
+Revocation is **immediate** — no propagation window, no in-flight grace period.
+
+## Authentication
+
+Requires a **secret key** (`sk_*`) for the same tenant as the key being revoked, or the admin token.
+
+You **can** revoke the very `sk_*` you used to authenticate. Doing so will lock you out of `/v1/api-keys/*` until another `sk_*` is minted (or the admin token is used). Useful in an "all-secrets-rotate" incident response, but plan the sequence carefully.
+
+## Path parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | UUID | The `saas_api_keys.id` returned at mint time or visible in `GET /v1/api-keys`. |
+
+## Request
+
+No body.
+
+```http
+DELETE /v1/api-keys/9a3e7d8b-… HTTP/1.1
+Host: api.fibo.io
+Authorization: Bearer sk_test_…
+```
+
+## Response
+
+`204 No Content` on success. No body.
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+| 404 | `not_found` | The key doesn't exist, is already revoked, or belongs to another tenant. (We collapse these three into 404 to avoid leaking key existence across tenants.) |
+
+## curl
+
+```bash
+curl -X DELETE https://api.fibo.io/v1/api-keys/9a3e7d8b-… \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+## Operational pattern — rotating without downtime
+
+If you want to replace a key without ever having a window where no key works for your integration, use [`POST /v1/api-keys/{id}/rotate`](/docs/api-reference/api-keys/rotate) instead of separate mint + revoke calls. Rotate is atomic.

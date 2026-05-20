@@ -1,0 +1,88 @@
+---
+title: Create an API key
+description: POST /v1/api-keys — mint a new publishable or secret key, scoped to your tenant.
+sidebar_position: 1
+---
+
+Mint a new API key for the current tenant. Returns the **plaintext key once** — the database keeps only the SHA-256 hash and a 16-char prefix, so this is your only chance to capture it.
+
+```
+POST /v1/api-keys
+```
+
+## Authentication
+
+Requires a **secret key** (`sk_*`) — publishable keys (`pk_*`) cannot manage tenant resources.
+
+The first `sk_*` of a fresh tenant is bootstrapped by Fibo during onboarding, or by an operator with the admin token using the same endpoint.
+
+## Request
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `key_type` | `"publishable"` &#124; `"secret"` | Yes | Determines the prefix: `pk_*` (browser-safe) or `sk_*` (server-only). |
+| `environment` | `"test"` &#124; `"live"` | Yes | Hard-separates non-production from production traffic. |
+| `name` | string (≤128 chars) | No | Human label. Shown on the dashboard and in `GET /v1/api-keys` responses. |
+| `tenant_id` | UUID | No | **Admin-only.** Mint a key for a tenant other than your own. Non-admin callers receive `403 forbidden` if set. |
+
+```http
+POST /v1/api-keys HTTP/1.1
+Host: api.fibo.io
+Authorization: Bearer sk_test_…
+Content-Type: application/json
+
+{
+  "key_type": "publishable",
+  "environment": "test",
+  "name": "Frontend bundle — staging"
+}
+```
+
+## Response
+
+`201 Created`:
+
+```json
+{
+  "id": "9a3e7d8b-…",
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "key_type": "publishable",
+  "environment": "test",
+  "key_prefix": "pk_test_abcd1234",
+  "key": "pk_test_abcd1234EFgh5678ijKL9012mnOP3456qrST",
+  "name": "Frontend bundle — staging",
+  "created_at": "2026-05-20T14:32:00.000Z"
+}
+```
+
+:::warning Capture `key` now
+The `key` field is the plaintext API key. Subsequent reads (`GET /v1/api-keys`) only return `key_prefix` and metadata. Lose the plaintext and the only recourse is to mint a replacement and revoke this one.
+:::
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid_request` | Missing or malformed field. `details` carries the Zod flatten output. |
+| 401 | `unauthenticated` | No bearer token, or the key is revoked. |
+| 403 | `forbidden` | You authenticated with a `pk_*`, or you tried `tenant_id` override without admin token. |
+| 404 | `not_found` | Admin override referenced a `tenant_id` that doesn't exist. |
+
+## curl
+
+```bash
+curl -X POST https://api.fibo.io/v1/api-keys \
+  -H "Authorization: Bearer sk_test_..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key_type": "publishable",
+    "environment": "test",
+    "name": "Frontend bundle"
+  }'
+```
+
+## Notes
+
+- Minted keys are immediately usable for authentication; no propagation delay.
+- The `tenant_id` you read in the response is always the tenant that owns the key — useful when admin-minting on behalf of a customer.
+- `key_prefix` (first 16 chars of the plaintext) is the value indexed for lookup. The Fibo backend rejects malformed bearer tokens before hitting the database, so probing with random strings doesn't incur DB load.

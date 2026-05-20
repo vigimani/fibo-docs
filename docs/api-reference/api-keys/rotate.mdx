@@ -1,0 +1,75 @@
+---
+title: Rotate an API key
+description: POST /v1/api-keys/{id}/rotate — mint a replacement key and revoke the original in a single call.
+sidebar_position: 4
+---
+
+Mint a new API key with the same type, environment, and name as the target — then immediately revoke the original. Returns the **plaintext of the new key** (once) plus the id of the revoked predecessor.
+
+```
+POST /v1/api-keys/{id}/rotate
+```
+
+## Authentication
+
+Requires a **secret key** (`sk_*`) for the same tenant, or the admin token.
+
+## Path parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `id` | UUID | The key being rotated. Becomes `replaced` in the response. |
+
+## Request
+
+No body.
+
+```http
+POST /v1/api-keys/9a3e7d8b-…/rotate HTTP/1.1
+Host: api.fibo.io
+Authorization: Bearer sk_test_…
+```
+
+## Response
+
+`201 Created`:
+
+```json
+{
+  "id": "c47f1a9d-…",
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "key_type": "publishable",
+  "environment": "test",
+  "key_prefix": "pk_test_zxywv9876",
+  "key": "pk_test_zxywv9876PQrs5432tuVW1098xyZA7654bcDE",
+  "name": "Frontend bundle — staging",
+  "created_at": "2026-05-20T15:00:00.000Z",
+  "replaces": "9a3e7d8b-…"
+}
+```
+
+:::warning Capture `key` now
+Same as the mint endpoint: the `key` field is the only place the plaintext appears. Subsequent reads return only `key_prefix`. If you lose it before deploying, rotate again.
+:::
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+| 404 | `not_found` | The key doesn't exist, is already revoked, or belongs to another tenant. |
+
+## curl
+
+```bash
+curl -X POST https://api.fibo.io/v1/api-keys/9a3e7d8b-…/rotate \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+## Recommended rotation pattern
+
+1. Call rotate. Capture the new `key` from the response.
+2. Deploy the new key to all environments that use the old one.
+3. Verify traffic on the new key via `GET /v1/api-keys` (`last_used_at` updates).
+4. (No step 4.) The old key is already revoked — there is no window where both work. If you need an overlap window, mint a parallel key first and revoke the original after the deploy.

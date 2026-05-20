@@ -117,17 +117,17 @@ Polling is supported but discouraged. Every state change Fibo manages is exposed
 
 | Resource | Status |
 |---|---|
-| `/v1/users` | Ships with API key middleware milestone |
-| `/v1/api-keys` | Ships with API key middleware milestone |
+| `/v1/api-keys` (CRUD + rotate) | **Live (M2)** — see [API keys reference](/docs/api-reference/api-keys/create) |
 | `/v1/quote` | Live (PoC contract; production-shape stable) |
 | `/v1/prepare-tx` | Live |
 | `/v1/submit` | Live |
 | `/v1/execute-signed-quote` | Live |
 | `/v1/transactions/{id}` | Live |
+| `/v1/users` | Ships with M3 |
+| `/v1/me/addresses` | Ships with M3 |
 | `/v1/balances` | Ships with PoC integration into production |
 | `/v1/tokens` | Ships with PoC integration into production |
-| `/v1/webhook-endpoints` | Ships with Webhook emitter milestone |
-| `/v1/webhook-events` | Ships with Webhook emitter milestone |
-| `/v1/me/addresses` | Ships with API key middleware milestone |
+| `/v1/webhook-endpoints` | Ships with Webhook emitter milestone (M3) |
+| `/v1/webhook-events` | Ships with Webhook emitter milestone (M3) |
 
 Per-endpoint reference pages will land here as each milestone ships.

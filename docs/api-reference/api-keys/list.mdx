@@ -1,0 +1,80 @@
+---
+title: List API keys
+description: GET /v1/api-keys — list all keys for the current tenant, including revoked ones for audit.
+sidebar_position: 2
+---
+
+Return every API key associated with the calling tenant. Includes revoked keys (audit) but **never** the plaintext value — only the prefix and metadata.
+
+```
+GET /v1/api-keys
+```
+
+## Authentication
+
+Requires a **secret key** (`sk_*`) or the admin token. Publishable keys (`pk_*`) receive `403 forbidden`.
+
+## Request
+
+No body, no query parameters in v1. Pagination ships with a later milestone — for the current cohort, expect ≤ 50 keys per tenant.
+
+```http
+GET /v1/api-keys HTTP/1.1
+Host: api.fibo.io
+Authorization: Bearer sk_test_…
+```
+
+## Response
+
+`200 OK`:
+
+```json
+{
+  "data": [
+    {
+      "id": "9a3e7d8b-…",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "key_type": "publishable",
+      "environment": "test",
+      "key_prefix": "pk_test_abcd1234",
+      "name": "Frontend bundle — staging",
+      "last_used_at": "2026-05-20T14:35:12.123Z",
+      "revoked_at": null,
+      "created_at": "2026-05-20T14:32:00.000Z"
+    },
+    {
+      "id": "f2c1a4e3-…",
+      "tenant_id": "00000000-0000-0000-0000-000000000001",
+      "key_type": "secret",
+      "environment": "test",
+      "key_prefix": "sk_test_xyz98765",
+      "name": "Backend integration tests",
+      "last_used_at": null,
+      "revoked_at": "2026-05-15T09:00:00.000Z",
+      "created_at": "2026-05-10T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+## Field semantics
+
+| Field | Meaning |
+|---|---|
+| `key_prefix` | First 16 chars of the plaintext key (`pk_test_` / `sk_test_` + 8 random). Use it to identify which key is in production code. |
+| `last_used_at` | Timestamp of the last successful authentication. `null` if the key has never been used. Updated asynchronously on each request — expect ~1s lag. |
+| `revoked_at` | `null` for live keys; ISO timestamp for revoked keys. Revoked keys are kept for 90 days for audit visibility, then hard-deleted. |
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+
+## curl
+
+```bash
+curl https://api.fibo.io/v1/api-keys \
+  -H "Authorization: Bearer sk_test_..."
+```

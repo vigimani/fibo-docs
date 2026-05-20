@@ -4,8 +4,8 @@ description: The two key types Fibo issues per environment and how to use them s
 sidebar_position: 1
 ---
 
-:::info Pre-release
-Self-serve key minting (`POST /v1/api-keys`) ships at **M2**, and the dashboard UI for key management at **M5** — see [/docs/status](/docs/status). The shapes below are the production contract. Today, keys are issued via white-glove onboarding ([contact sales](https://fibo.io/contact)) within 1 business day.
+:::info Self-serve via API; dashboard UI ships at M5
+Self-serve key management via the REST API is **live** — see [`POST /v1/api-keys`](/docs/api-reference/api-keys/create) and its siblings. The web dashboard UI ships at **M5** (see [/docs/status](/docs/status)). For the first cohort, the initial `sk_test_*` of a new tenant is still issued by Fibo during onboarding; subsequent keys you mint yourself.
 :::
 
 ## Two key types, two environments
@@ -58,11 +58,23 @@ No other headers are required. Content-Type is `application/json` for any reques
 
 ## Rotation
 
-Both `pk_…` and `sk_…` keys can be rotated without downtime:
+Both `pk_…` and `sk_…` keys can be rotated. Two patterns:
 
-1. Mint a new key of the same type / environment via the dashboard or `POST /v1/api-keys`.
-2. Deploy the new key value to wherever it's used.
-3. Revoke the old key via `DELETE /v1/api-keys/{id}` — past requests authenticated with it remain valid; only future requests are rejected.
+**Atomic** — single API call, no overlap window:
+
+```bash
+curl -X POST https://api.fibo.io/v1/api-keys/{id}/rotate \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+Mints a replacement key with the same type/environment/name and immediately revokes the original. The response carries the new plaintext key (once). See [`POST /v1/api-keys/{id}/rotate`](/docs/api-reference/api-keys/rotate).
+
+**Overlapped** — for cases where you need both keys valid during a deploy:
+
+1. Mint a parallel key with [`POST /v1/api-keys`](/docs/api-reference/api-keys/create).
+2. Deploy the new key.
+3. Verify traffic with `last_used_at` updates on [`GET /v1/api-keys`](/docs/api-reference/api-keys/list).
+4. Revoke the original with [`DELETE /v1/api-keys/{id}`](/docs/api-reference/api-keys/revoke).
 
 A revoked key's `key_prefix` is kept indexed for 90 days so audit logs remain readable.
 

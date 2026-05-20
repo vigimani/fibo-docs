@@ -49,7 +49,19 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'API reference',
-      items: ['api-reference/introduction'],
+      items: [
+        'api-reference/introduction',
+        {
+          type: 'category',
+          label: 'API keys',
+          items: [
+            'api-reference/api-keys/create',
+            'api-reference/api-keys/list',
+            'api-reference/api-keys/revoke',
+            'api-reference/api-keys/rotate',
+          ],
+        },
+      ],
     },
   ],
 };

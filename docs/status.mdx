@@ -9,7 +9,8 @@ Fibo is in active development. This page is the honest reference for what's actu
 ## What works today
 
 - **Backend orchestration core**: tenant model, transaction persistence in Postgres (RLS-hardened), gasless EVM swap end-to-end (LiFi route + Biconomy MEE + EIP-7702 user-level delegation), Solana backend fee-payer co-signature path, transaction state machine.
-- **The 6 endpoints flagged "Live"** in [API Reference](/docs/api-reference/introduction): `POST /v1/quote`, `POST /v1/prepare-tx`, `POST /v1/submit`, `POST /v1/execute-signed-quote`, `GET /v1/transactions/{id}`, plus the bearer-token auth layer that fronts them. Accessible against a manually-provisioned sandbox.
+- **The 6 endpoints flagged "Live"** in [API Reference](/docs/api-reference/introduction): `POST /v1/quote`, `POST /v1/prepare-tx`, `POST /v1/submit`, `POST /v1/execute-signed-quote`, `GET /v1/transactions/{id}`, plus tenant-scoped API-key auth.
+- **API key management (M2)**: self-serve mint / list / revoke / rotate via [`/v1/api-keys`](/docs/api-reference/api-keys/create). `pk_*` and `sk_*` keys, hard-separated `test` / `live` environments, SHA-256 hashed at rest, replaces the M1 bearer token. CLI bootstrap (`npm run mint:key`) for issuing the first `sk_*` of a new tenant.
 - **Reference React frontend**: an end-to-end working PoC web app that exercises the full quote → prepare → 2-signature → execute → confirmation flow. We share its code with onboarding integrators.
 - **The full security and architecture story** — what's in the [Security](/docs/security) and [Architecture](/docs/concepts/architecture) pages is stable and reviewable today.
 
@@ -17,7 +18,6 @@ Fibo is in active development. This page is the honest reference for what's actu
 
 | Milestone | What it ships | Target |
 |---|---|---|
-| **M2** — API key middleware | Self-serve `pk_*` / `sk_*` minting + revocation + tenant scoping enforced in Fastify | Q2 2026 |
 | **M3** — Webhook emitter | `wallet.*`, `tx.*`, `kyc.*` events with HMAC-SHA256 signing, exponential retry, replay & backfill API | Q2 2026 |
 | **M4** — Usage metering | Per-tenant monthly counters (active users, wallets created, tx count, USD volume) for billing | Q3 2026 |
 | **M5** — Sandbox + dashboard + CLI | Dedicated `api.sandbox.fibo.io`, web dashboard, `fibo` CLI for key + endpoint management, public npm publication of `@fibo/react-sdk` | Q3 2026 |
@@ -33,7 +33,6 @@ These surfaces appear in the docs as production-shape because the contract is fi
 | `@fibo/react-sdk` on npm | Distributed as a pinned tarball to the first cohort. Contact sales for access. | M5 |
 | Dashboard UI (key rotation, webhook config, replay) | All admin operations are via API call or via the Fibo team. | M5 |
 | `api.sandbox.fibo.io` (dedicated sandbox base URL) | Sandbox runs against the same backend with `_test_` keys. | M5 |
-| Self-serve key minting | White-glove onboarding: email within 1 business day with `pk_test_*` + `sk_test_*` + webhook setup. | M2 |
 | Webhook endpoint registration (`POST /v1/webhook-endpoints`) | Endpoints + signing secret set up by the Fibo team during onboarding. | M3 |
 | `wallet.created`, `tx.confirmed` and other events | Not yet emitted; payload contracts published so you can write the handler now. | M3 |
 
