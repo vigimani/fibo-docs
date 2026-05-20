@@ -17,11 +17,11 @@ export default function Home(): JSX.Element {
         <div className={styles.container}>
           <p className={styles.eyebrow}>Fibo SaaS</p>
           <h1 className={styles.headline}>
-            Non-custodial crypto infrastructure for B2B platforms.
+            The everybody-wallet for your platform.
           </h1>
           <p className={styles.subhead}>
-            Wallets, gasless transactions, swaps, yield, ramping — without
-            becoming a crypto company.
+            Bitcoin, DeFi yield, cross-chain swaps — for your users, on your
+            platform. Non-custodial by construction. As simple as a banking app.
           </p>
           <div className={styles.ctas}>
             <Link className={styles.ctaPrimary} to="/docs/quickstart">
@@ -30,6 +30,26 @@ export default function Home(): JSX.Element {
             <Link className={styles.ctaSecondary} to="/docs/introduction">
               Read the docs
             </Link>
+          </div>
+
+          <div className={styles.chainsRow}>
+            <span className={styles.chainsLabel}>Supported today</span>
+            <div className={styles.chainPills}>
+              {[
+                'Ethereum',
+                'Polygon',
+                'Base',
+                'Optimism',
+                'Arbitrum',
+                'Avalanche',
+                'Solana',
+                'Bitcoin',
+              ].map((chain) => (
+                <span key={chain} className={styles.chainPill}>
+                  {chain}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </header>
