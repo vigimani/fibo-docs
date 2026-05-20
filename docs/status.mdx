@@ -12,6 +12,7 @@ Fibo is in active development. This page is the honest reference for what's actu
 - **The 6 endpoints flagged "Live"** in [API Reference](/docs/api-reference/introduction): `POST /v1/quote`, `POST /v1/prepare-tx`, `POST /v1/submit`, `POST /v1/execute-signed-quote`, `GET /v1/transactions/{id}`, plus tenant-scoped API-key auth.
 - **API key management (M2)**: self-serve mint / list / revoke / rotate via [`/v1/api-keys`](/docs/api-reference/api-keys/create). `pk_*` and `sk_*` keys, hard-separated `test` / `live` environments, SHA-256 hashed at rest, replaces the M1 bearer token. CLI bootstrap (`npm run mint:key`) for issuing the first `sk_*` of a new tenant.
 - **Webhook delivery (M3)**: register endpoints via [`/v1/webhook-endpoints`](/docs/api-reference/webhook-endpoints/create), HMAC-SHA256 signing with rotation overlap, exponential retry (7 attempts over ~67h), [replay + audit log](/docs/api-reference/webhook-events/list). `tx.prepared` / `tx.submitted` / `tx.failed` emit today; wallet / KYC events follow as their orchestration paths land.
+- **Usage metering (M4)**: per-tenant monthly counters via [`/v1/usage`](/docs/api-reference/usage/current) + [`/v1/usage/history`](/docs/api-reference/usage/history). `active_users` computed at query time (always accurate); `wallets_created` + `tx_count` maintained as atomic UPSERT counters bumped on the originating events. `usd_volume` wiring deferred until LiFi USD price feed is plumbed through.
 - **Reference React frontend**: an end-to-end working PoC web app that exercises the full quote → prepare → 2-signature → execute → confirmation flow. We share its code with onboarding integrators.
 - **The full security and architecture story** — what's in the [Security](/docs/security) and [Architecture](/docs/concepts/architecture) pages is stable and reviewable today.
 
@@ -19,7 +20,6 @@ Fibo is in active development. This page is the honest reference for what's actu
 
 | Milestone | What it ships | Target |
 |---|---|---|
-| **M4** — Usage metering | Per-tenant monthly counters (active users, wallets created, tx count, USD volume) for billing | Q3 2026 |
 | **M5** — Sandbox + dashboard + CLI | Dedicated `api.sandbox.fibo.io`, web dashboard, `fibo` CLI for key + endpoint management, public npm publication of `@fibo/react-sdk` | Q3 2026 |
 
 Dates are best-effort. We ship when the work is right; we publish status changes on the [blog](/blog).

@@ -80,6 +80,14 @@ const sidebars: SidebarsConfig = {
             'api-reference/webhook-events/replay',
           ],
         },
+        {
+          type: 'category',
+          label: 'Usage',
+          items: [
+            'api-reference/usage/current',
+            'api-reference/usage/history',
+          ],
+        },
       ],
     },
   ],
