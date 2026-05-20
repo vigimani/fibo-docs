@@ -1,0 +1,47 @@
+---
+title: Welcome to Fibo
+description: Non-custodial crypto infrastructure for B2B platforms. Wallets, gasless transactions, swaps, yield, ramping — without becoming a crypto company.
+---
+
+## What Fibo does
+
+Fibo lets your platform offer crypto to its users without taking custody of their funds and without operating as a crypto company yourself.
+
+You install one React SDK, point it at our backend with an API key, and your users get:
+
+- **Embedded multi-chain wallets** on Ethereum, Polygon, Base, Optimism, Arbitrum, Avalanche, Solana, and Bitcoin — provisioned at login with private keys held in a TEE, never on your servers.
+- **Gasless transactions** sponsored by Fibo's gas tank on EVM chains (via [Biconomy MEE](https://biconomy.io) super-transactions and EIP-7702) and via a relay fee-payer on Solana.
+- **Cross-chain swaps** routed through [LiFi](https://li.fi)'s 60+ bridge / DEX aggregator.
+- **Yield** via Aave (lending) and Beefy (auto-compounded vaults) on supported EVM chains.
+- **Ramping connectors** (Monerium for SEPA → EURe, Transak for card / bank) — opt-in, you sign the provider contracts directly.
+
+## Who this is for
+
+You're integrating Fibo if you're a B2B platform — multi-asset investment, fintech, neobroker, treasury management — and you want crypto inside your product without becoming a crypto-asset service provider (CASP under MiCA, MSB under US frameworks, etc.). Because keys live in the user's secure enclave and you never touch them, your platform's regulatory positioning is independent of Fibo's own.
+
+<Note>
+Fibo is non-custodial by construction. The user signs every transaction with a key that never leaves their device's hardware-backed secure element. We orchestrate, route, and sponsor gas — we never hold funds.
+</Note>
+
+## Where to start
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get a working integration in 10 minutes — install the SDK, mint API keys, run a test swap.
+  </Card>
+  <Card title="Architecture" icon="layer-group" href="/concepts/architecture">
+    The "thin SDK, fat backend" model. Why the SDK is intentionally dumb and what that means for you.
+  </Card>
+  <Card title="Wallets" icon="wallet" href="/concepts/wallets">
+    Multi-chain embedded wallets via Privy. Same security model on EVM, Solana, and Bitcoin.
+  </Card>
+  <Card title="API Reference" icon="terminal" href="/api-reference/introduction">
+    REST endpoints, request shapes, response codes, and webhook payloads.
+  </Card>
+</CardGroup>
+
+## Status
+
+The Fibo SaaS API is in early access. Production endpoints are stable for the documented surface; new endpoints are added per the [milestone plan](https://github.com/vigimani/fibo-saas/blob/main/docs/04-mvp-scope.md). Breaking changes follow a 30-day deprecation notice and are flagged in webhooks under the `api.deprecation` event.
+
+If you're evaluating Fibo, [contact sales](https://fibo.io/contact) — onboarding is currently white-glove.

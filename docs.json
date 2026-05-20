@@ -1,0 +1,98 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Fibo SaaS",
+  "description": "Non-custodial crypto infrastructure for B2B platforms. Wallets, gasless transactions, swaps, yield, ramping — without becoming a crypto company.",
+  "colors": {
+    "primary": "#5B44F9",
+    "light": "#7E66FB",
+    "dark": "#4733D7"
+  },
+  "favicon": "/images/logo/favicon.svg",
+  "logo": {
+    "light": "/images/logo/light.svg",
+    "dark": "/images/logo/dark.svg"
+  },
+  "fonts": {
+    "family": "Poppins"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/wallets",
+              "concepts/gasless",
+              "concepts/chains"
+            ]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "authentication/api-keys",
+              "authentication/webhook-signatures"
+            ]
+          },
+          {
+            "group": "Webhooks",
+            "pages": [
+              "webhooks/overview",
+              "webhooks/events"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/first-swap",
+              "guides/handling-webhooks",
+              "guides/ramping"
+            ]
+          },
+          {
+            "group": "SDK",
+            "pages": [
+              "sdk/installation"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api-reference/introduction"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      { "label": "Status", "href": "https://status.fibo.io" }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Contact sales",
+      "href": "https://fibo.io/contact"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/vigimani"
+    }
+  }
+}

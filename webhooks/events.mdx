@@ -1,0 +1,140 @@
+---
+title: Event catalog
+description: All Fibo webhook event types, what triggers them, and a sample payload for each.
+---
+
+<Warning>
+Webhook delivery ships at the Webhook emitter milestone. This catalog is the planned event surface for v1.
+</Warning>
+
+## Conventions
+
+- All event types are dot-namespaced: `<resource>.<verb>`.
+- Verbs follow [Stripe-style naming](https://stripe.com/docs/api/events/types) where applicable: `created`, `updated`, `deleted`, `*.succeeded`, `*.failed`.
+- New event types are added under existing namespaces without warning. Subscribe with `wallet.*` to receive future wallet events automatically.
+- Removed event types follow a 30-day deprecation cycle, announced via the `api.deprecation` event.
+
+## Wallet events
+
+| Event | When it fires |
+|---|---|
+| `wallet.created` | First time a user's embedded wallets are provisioned (typically first login). Fires once per chain family. |
+| `wallet.funded` | Fibo's indexer detects an incoming transfer to one of the user's addresses. Useful for unlocking features once the user has funds. |
+| `wallet.exported` | The user used Privy's self-service export to extract their private key. Informational; their wallets remain functional within Fibo afterward. |
+
+<Accordion title="Sample wallet.created">
+```json
+{
+  "event_id":   "evt_…",
+  "event_type": "wallet.created",
+  "livemode":   true,
+  "created_at": "2026-05-20T10:32:00Z",
+  "data": {
+    "user_id":     "usr_…",
+    "external_id": "your-user-123",
+    "email":       "alice@example.com",
+    "addresses": {
+      "evm":     "0xabc…",
+      "solana":  "ABC…XYZ",
+      "bitcoin": null
+    },
+    "created_at": "2026-05-20T10:32:00Z"
+  }
+}
+```
+</Accordion>
+
+<Accordion title="Sample wallet.funded">
+```json
+{
+  "event_id":   "evt_…",
+  "event_type": "wallet.funded",
+  "livemode":   true,
+  "created_at": "2026-05-20T11:00:00Z",
+  "data": {
+    "user_id":   "usr_…",
+    "address":   "0xabc…",
+    "chain_id":  8453,
+    "currency":  "USDC",
+    "amount":    "100.00",
+    "usd_value": "100.00",
+    "tx_hash":   "0x…",
+    "first_funding": true
+  }
+}
+```
+</Accordion>
+
+## Transaction events
+
+| Event | When it fires |
+|---|---|
+| `tx.quoted` | A user accepted a quote via `POST /v1/quote`. Useful for tracking funnel drop-off. |
+| `tx.submitted` | The user signed and Fibo submitted to the network (MEE / Solana relay / BTC broadcast). |
+| `tx.confirmed` | The transaction is final on its source chain (or all chains, for cross-chain). |
+| `tx.failed` | The transaction failed on-chain or in the orchestration pipeline. `data.failure_reason` carries the cause. |
+| `tx.expired` | A prepared transaction was never submitted within its TTL and was discarded. |
+
+<Accordion title="Sample tx.confirmed">
+```json
+{
+  "event_id":   "evt_…",
+  "event_type": "tx.confirmed",
+  "livemode":   true,
+  "created_at": "2026-05-20T10:34:00Z",
+  "data": {
+    "transaction_id": "tx_…",
+    "user_id":        "usr_…",
+    "kind":           "swap",
+    "status":         "confirmed",
+    "super_hash":     "0x…",
+    "tx_hash":        "0x…",
+    "tracker_url":    "https://meescan.biconomy.io/details/…",
+    "source":         { "amount": "100.00", "currency": "USDC", "chain_id": 8453 },
+    "destination":    { "amount": "0.0312", "currency": "ETH",  "chain_id": 8453 },
+    "fees":           { "fibo": "0.50", "currency": "USDC" },
+    "completed_at":   "2026-05-20T10:33:55Z"
+  }
+}
+```
+</Accordion>
+
+## KYC events
+
+| Event | When it fires |
+|---|---|
+| `kyc.submitted` | The user completed a KYC flow (via Sumsub share token or a ramping provider). |
+| `kyc.approved` | KYC was accepted. `data.provider` indicates which entity approved it (e.g., `sumsub`, `monerium`). |
+| `kyc.rejected` | KYC was rejected. `data.reason` carries the human-readable explanation. |
+
+## API events
+
+| Event | When it fires |
+|---|---|
+| `api_key.created` | A new API key was minted via the dashboard or `POST /v1/api-keys`. |
+| `api_key.revoked` | A key was revoked. |
+| `api.deprecation` | An endpoint or event type entered its 30-day deprecation window. `data.deprecated_at` is the cutoff. |
+
+## Tenant events
+
+| Event | When it fires |
+|---|---|
+| `tenant.gas_tank_low` | A chain's gas tank dropped below the safe-operations threshold. Fibo tops up automatically; this is informational so you can degrade UX (greying out swap buttons) in coordination. |
+| `tenant.usage_threshold` | Monthly usage reached 80% of plan limit. `data.plan` and `data.usage` carry the breakdown. |
+
+## Subscribing to a subset
+
+Each webhook endpoint declares its `enabled_events`. Glob-style wildcards are supported:
+
+```json
+{
+  "enabled_events": [
+    "wallet.*",
+    "tx.confirmed",
+    "tx.failed",
+    "kyc.*"
+  ]
+}
+```
+
+Events whose type is not matched by any pattern in `enabled_events` are not delivered (and not retried). They remain queryable via `GET /v1/webhook-events?event_type=...` for the 90-day retention window.
