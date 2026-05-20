@@ -1,0 +1,88 @@
+---
+title: Get current usage
+description: GET /v1/usage — fetch the metering snapshot for the current month (or a specific month).
+sidebar_position: 1
+---
+
+Return the metering snapshot for one calendar month, scoped to the calling tenant. Four counters:
+
+- `active_users` — distinct users with at least one transaction in the period (computed at query time, always accurate)
+- `wallets_created` — newly provisioned `saas_users` rows (running counter, bumped on first appearance)
+- `tx_count` — successful transaction submissions (running counter, bumped on `tx.submitted`)
+- `usd_volume` — sum of USD-denominated transaction volume *(not yet wired in M4 — see [/docs/status](/docs/status); always returns `0` for now)*
+
+```
+GET /v1/usage
+GET /v1/usage?period=YYYY-MM-01
+```
+
+## Authentication
+
+Requires a **secret key** (`sk_*`) or the admin token.
+
+## Query parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `period` | `YYYY-MM-01` | First day of the month to query. Defaults to the current calendar month (UTC). Must be exactly `YYYY-MM-01` — other day-of-month values are rejected with 400. |
+
+## Response
+
+`200 OK`:
+
+```json
+{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "period": "2026-05-01",
+  "active_users": 12,
+  "wallets_created": 7,
+  "tx_count": 34,
+  "usd_volume": "0"
+}
+```
+
+### Field semantics
+
+| Field | Computation | Notes |
+|---|---|---|
+| `active_users` | `COUNT(DISTINCT user_id)` on `saas_transactions` WHERE `created_at` in the month | Always accurate; recomputed on every request. |
+| `wallets_created` | Stored counter, bumped when a fresh `saas_users` row is INSERTed | At-most-once semantics — see notes below. |
+| `tx_count` | Stored counter, bumped after a successful `/v1/execute-signed-quote` | Same. |
+| `usd_volume` | Stored counter, decimal string | Always `"0"` in M4. Wiring the LiFi quote's USD-denominated amount ships in a follow-up milestone. |
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid_request` | `period` is not in `YYYY-MM-01` format (must be the first of a month). |
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+
+## curl
+
+```bash
+# Current month
+curl https://api.fibo.io/v1/usage \
+  -H "Authorization: Bearer sk_test_..."
+
+# Specific month
+curl "https://api.fibo.io/v1/usage?period=2026-04-01" \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+## At-most-once counters
+
+The stored counters (`wallets_created`, `tx_count`) are bumped after the originating database write commits — not inside the same transaction. If the bump call fails (e.g., DB pool exhausted between the user write and the counter UPSERT), the counter under-counts by one. This is a deliberate trade-off:
+
+- The originating path (user creation, transaction submission) is the source of truth for product behavior.
+- Counters are for billing / quota signals — a small drift is acceptable.
+- For exact reconciliation, the `active_users` field is recomputed from `saas_transactions` at every read. For `tx_count`, a periodic backfill job (planned, not yet shipped) reconciles against the source table.
+
+The drift is observable: `active_users` (computed) and the implicit count of transactions vs. `tx_count` (stored) should converge after a reconciliation pass. If you spot a meaningful gap, contact us with the period — the diff is recoverable.
+
+## Future
+
+- `usd_volume` wiring (LiFi USD price feed plumbed through `/v1/quote` → `saas_transactions.usd_volume` → counter bump)
+- `tenant.usage_threshold` webhook event when crossing 80% of the plan limit
+- Backfill / reconciliation job for `tx_count` against `saas_transactions`
+- Plan-aware quota check (reject `/v1/quote` with `429 quota_exceeded` when over limit)

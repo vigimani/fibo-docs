@@ -1,0 +1,67 @@
+---
+title: Get usage history
+description: GET /v1/usage/history — last N months of usage for the current tenant, descending.
+sidebar_position: 2
+---
+
+Return the last N months of usage snapshots for the calling tenant, in descending order (current month first). Each month returns the same shape as [`GET /v1/usage`](/docs/api-reference/usage/current).
+
+```
+GET /v1/usage/history
+GET /v1/usage/history?months=12
+```
+
+## Authentication
+
+Requires `sk_*` or admin token.
+
+## Query parameters
+
+| Param | Type | Description |
+|---|---|---|
+| `months` | int (1–24) | How many months to return. Defaults to `6`. |
+
+## Response
+
+`200 OK`:
+
+```json
+{
+  "tenant_id": "00000000-0000-0000-0000-000000000001",
+  "months": 6,
+  "data": [
+    { "period": "2026-05-01", "active_users": 12, "wallets_created": 7,  "tx_count": 34, "usd_volume": "0" },
+    { "period": "2026-04-01", "active_users": 18, "wallets_created": 9,  "tx_count": 51, "usd_volume": "0" },
+    { "period": "2026-03-01", "active_users":  6, "wallets_created": 4,  "tx_count": 19, "usd_volume": "0" },
+    { "period": "2026-02-01", "active_users":  0, "wallets_created": 0,  "tx_count":  0, "usd_volume": "0" },
+    { "period": "2026-01-01", "active_users":  0, "wallets_created": 0,  "tx_count":  0, "usd_volume": "0" },
+    { "period": "2025-12-01", "active_users":  0, "wallets_created": 0,  "tx_count":  0, "usd_volume": "0" }
+  ]
+}
+```
+
+Months with no recorded activity are returned with zero counters (not omitted), so the array is always exactly `months` entries long. This makes month-over-month rendering on the integrator's dashboard a straight `.map()` with no gap-filling logic.
+
+## Errors
+
+| Status | Code | When |
+|---|---|---|
+| 400 | `invalid_request` | `months` outside `[1, 24]`. |
+| 401 | `unauthenticated` | Missing / invalid / revoked bearer. |
+| 403 | `forbidden` | You authenticated with a `pk_*`. |
+
+## curl
+
+```bash
+# Default: last 6 months
+curl https://api.fibo.io/v1/usage/history \
+  -H "Authorization: Bearer sk_test_..."
+
+# Last 12 months
+curl "https://api.fibo.io/v1/usage/history?months=12" \
+  -H "Authorization: Bearer sk_test_..."
+```
+
+## Performance
+
+Each month in the response triggers a `COUNT(DISTINCT user_id)` query for the `active_users` field. For 24 months that's 24 DB roundtrips. At PoC scale this is fine (< 200ms total); at production scale, consider caching the historic months (anything not in the current calendar period is immutable) and refreshing only the current row on demand.
