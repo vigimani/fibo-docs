@@ -1,0 +1,106 @@
+---
+title: SDK installation
+description: Install @fibo/react-sdk, wrap your app, and start using the hooks.
+sidebar_position: 1
+---
+
+:::warning
+The `@fibo/react-sdk` package is in pre-release. Today the PoC ships a thin wrapper directly against the Fibo backend; the published npm package lands at the Sandbox + CLI admin milestone. The shapes below are the production contract.
+:::
+
+## Install
+
+```bash
+npm install @fibo/react-sdk
+# or
+pnpm add @fibo/react-sdk
+# or
+yarn add @fibo/react-sdk
+```
+
+Privy is a **transitive dependency** — you don't install or configure `@privy-io/react-auth` yourself ([why](https://github.com/vigimani/fibo-saas/blob/main/docs/adr/0003-privy-as-transitive-dep-in-sdk.md)). Fibo manages the Privy app, the chain configuration, and the wallet provisioning.
+
+## Provider setup
+
+Wrap your app at the highest level you can — `_app.tsx` in Next.js Pages, `app/layout.tsx` in App Router, root component in Vite:
+
+```tsx
+import { FiboProvider } from '@fibo/react-sdk';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <FiboProvider
+      publishableKey={process.env.NEXT_PUBLIC_FIBO_PUBLISHABLE_KEY!}
+      // Optional but recommended: pass your own user id so Fibo can echo
+      // it back on webhooks (`external_id` field).
+      externalUserId={session?.user?.id}
+      // Optional: customize the auth method list shown by Privy.
+      // Defaults to ['email', 'google', 'apple', 'passkey'].
+      loginMethods={['email', 'passkey']}
+      // Optional: appearance overrides at the CSS-variable level.
+      theme={{
+        accent: '#5B44F9',
+        fontFamily: 'Poppins, sans-serif',
+      }}
+    >
+      {children}
+    </FiboProvider>
+  );
+}
+```
+
+## Hooks overview
+
+The SDK exposes a small surface — every operation routes through one of these hooks:
+
+| Hook | What it returns |
+|---|---|
+| `useFiboAuth()` | `{ user, isAuthenticated, login, logout }` |
+| `useFiboWallet()` | `{ addresses: { evm, solana, bitcoin }, isLoading }` |
+| `useFiboBalance(opts?)` | `{ balances, totalUsd, isLoading, hasFunds }` |
+| `useFiboSwap()` | `{ quote, swap }` — quote/sign/submit ceremony |
+| `useFiboTransfer()` | `{ transfer }` — cross-chain transfer |
+| `useFiboYield()` | `{ supply, withdraw }` — Aave / Beefy operations |
+| `useFiboTransactions(opts?)` | Paginated transaction history |
+| `useFundWallet()` | Opens the appropriate funding flow (ramp or QR receive) |
+
+Each per-action hook returns a Promise that resolves once the user has signed and the backend has acknowledged the submission. Live status afterward arrives via the `tx.*` webhooks (see [webhooks/events](/docs/webhooks/events)).
+
+## Tree-shaking & ramping connectors
+
+Ramping is opt-in per provider. Each connector ships as a sub-export:
+
+```tsx
+// Add Monerium SEPA → EURe to your app
+import { MoneriumConnector } from '@fibo/react-sdk/monerium';
+
+// Add Transak (card / bank → many tokens)
+import { TransakConnector } from '@fibo/react-sdk/transak';
+```
+
+Unused connectors are tree-shaken out — the core SDK without any connector is ~50KB gzipped. See the [ramping guide](/docs/guides/ramping) for the contractual model.
+
+## TypeScript
+
+The SDK ships with first-class TypeScript types. Every hook is fully typed; every response shape on the wire has a corresponding exported type:
+
+```ts
+import type { FiboTransaction, FiboQuote, FiboAddresses } from '@fibo/react-sdk';
+```
+
+The types are also published independently as `@fibo/types` if you want to share them with your backend.
+
+## Frameworks
+
+| Framework | Status |
+|---|---|
+| Next.js (Pages & App router) | Supported. Use `'use client'` on any component that renders a Fibo hook. |
+| Vite + React | Supported. |
+| Remix | Supported. |
+| Astro | Supported with the `client:only="react"` directive. |
+| Plain React (CRA, etc.) | Supported. |
+| React Native | Coming (Phase 1). The mobile SDK will mirror the same API. |
+
+## Versioning
+
+`@fibo/react-sdk` follows semver. Major versions track breaking SDK API changes (rare); minor versions track new hooks / connectors; patches are bug-fix only. The backend API is versioned independently (`/v1/`) — the SDK abstracts the backend version so SDK upgrades don't force backend version migrations.

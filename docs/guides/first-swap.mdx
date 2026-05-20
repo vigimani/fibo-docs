@@ -1,0 +1,140 @@
+---
+title: Your first swap
+description: End-to-end walkthrough of a USDC → ETH swap on Base — quote, sign, submit, confirm via webhook.
+sidebar_position: 1
+---
+
+:::warning
+This guide describes the production-shape API. The PoC currently exposes the same shapes against a sandbox backend; self-serve key minting lands at the Sandbox + CLI admin milestone.
+:::
+
+This page walks you through what your user sees and what your server receives, for one canonical case: a gasless USDC → ETH swap on Base.
+
+## Prerequisites
+
+- The user has signed in via `FiboProvider` and the `wallet.created` webhook has fired on your server (you have their `addresses.evm`).
+- The user holds ≥ 100 USDC on their Base address. Funding can come from any source — your own ramping integration, a CEX withdrawal, another wallet. If your user is starting from zero, see the [ramping guide](/docs/guides/ramping) before this one.
+- Your tenant has Base enabled (default for all tenants).
+
+## Step 1 — Render the swap UI
+
+```tsx
+import { useFiboSwap, useFiboBalance } from '@fibo/react-sdk';
+
+function SwapPage() {
+  const { balances } = useFiboBalance({ chain_id: 8453 });
+  const { quote, swap, status } = useFiboSwap();
+
+  const handleQuote = () => quote({
+    source: { currency: 'USDC', chain_id: 8453, amount: '100' },
+    destination: { currency: 'ETH', chain_id: 8453 },
+  });
+
+  return (
+    <div>
+      <p>You have {balances.USDC ?? '0.00'} USDC on Base.</p>
+      <button onClick={handleQuote}>Quote</button>
+      {quote.result && (
+        <div>
+          <p>You'll receive ≈ {quote.result.destination.amount} ETH</p>
+          <p>Fibo fee: {quote.result.fees.fibo} USDC</p>
+          <button onClick={() => swap(quote.result)} disabled={status === 'pending'}>
+            {status === 'pending' ? 'Confirm in your authenticator…' : 'Swap'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Step 2 — User signs
+
+When the user clicks **Swap**, the SDK runs the gasless ceremony:
+
+1. Calls `POST /v1/prepare-tx` with the quote id and the user's EVM address.
+2. Receives an EIP-7702 authorization payload from the backend.
+3. Hands it to Privy. Privy prompts the user for their passkey (or sets one up on first use).
+4. Submits the signed authorization to `POST /v1/submit`.
+5. The backend fetches the MEE quote with the authorization, returns the quote hash.
+6. Privy prompts the user one more time to sign the hash.
+7. The backend calls `POST /v1/execute-signed-quote` with the user signature and Biconomy MEE executes — gas paid from Fibo's gas tank.
+
+The user sees two biometric prompts in quick succession. The total time from "Swap" click to "Submitted" is typically under 5 seconds.
+
+The Promise returned by `swap()` resolves with:
+
+```ts
+{
+  transaction_id: 'tx_…',
+  super_hash: '0x…',
+  tracker_url: 'https://meescan.biconomy.io/details/…',
+  status: 'submitted',
+}
+```
+
+At this point the transaction is on-chain (submitted to Biconomy's MEE node, propagating to a builder). The user can be shown a "submitted" state with the tracker URL.
+
+## Step 3 — Your server hears the outcome
+
+30 seconds or so later (Base's block time × a few confirmations), your webhook endpoint receives:
+
+```json
+{
+  "event_id":   "evt_…",
+  "event_type": "tx.confirmed",
+  "livemode":   true,
+  "created_at": "2026-05-20T10:34:00Z",
+  "data": {
+    "transaction_id": "tx_…",
+    "user_id":        "usr_…",
+    "external_id":    "your-user-123",
+    "kind":           "swap",
+    "status":         "confirmed",
+    "super_hash":     "0x…",
+    "tracker_url":    "https://meescan.biconomy.io/details/…",
+    "source":         { "amount": "100.00", "currency": "USDC", "chain_id": 8453 },
+    "destination":    { "amount": "0.0312", "currency": "ETH",  "chain_id": 8453 },
+    "fees":           { "fibo": "0.50", "currency": "USDC" },
+    "completed_at":   "2026-05-20T10:33:55Z"
+  }
+}
+```
+
+Handle it per the [webhook patterns](/docs/guides/handling-webhooks): verify the signature, check the `event_id` for idempotency, ack with 204, then update your DB.
+
+## Step 4 — Your UI reacts
+
+Your frontend can wait for the `tx.confirmed` event via your own websocket / SSE channel to your server, or poll `GET /v1/transactions/{id}` (less efficient but simpler):
+
+```tsx
+const { transaction, isPending } = useFiboTransaction(transactionId);
+
+if (transaction.status === 'submitted') return <Pending />;
+if (transaction.status === 'confirmed') return <Success amount={transaction.destination.amount} />;
+if (transaction.status === 'failed') return <Failed reason={transaction.failure_reason} />;
+```
+
+For most integrations the recommended pattern is: render "submitted" optimistically from the swap() result, then upgrade to "confirmed" when your own state changes after receiving the webhook on your server.
+
+## What could go wrong
+
+| Symptom | Likely cause | What to do |
+|---|---|---|
+| `quote` returns `404 no_route` | The token pair isn't routable today (unusual for USDC ↔ ETH on a major chain). | Try a smaller amount or surface the error to the user; LiFi's coverage shifts. |
+| `swap` rejects with `quote_expired` | The user took more than 5 minutes between quote and signing. | Re-quote and retry — the SDK can do this transparently. |
+| User declines the passkey prompt | Expected — let them retry. | The SDK's promise rejects with `user_rejected`; no transaction was created. |
+| `tx.failed` with `failure_reason: 'insufficient_balance'` | Race condition — the user spent the USDC elsewhere between quote and submit. | Refresh balances; surface a clear error. |
+| `tx.failed` with `failure_reason: 'gas_tank_low'` | Fibo's gas tank on Base is depleted. | We get paged immediately; user can retry in a few minutes. Subscribe to `tenant.gas_tank_low` to degrade UX preemptively. |
+| Webhook never arrives | TLS / endpoint config issue, or your endpoint is returning non-2xx. | Check `GET /v1/webhook-events?from=…` — the dashboard shows delivery attempts and HTTP responses. |
+
+## Next
+
+<CardGroup cols={2}>
+  <Card title="Handle webhooks correctly" icon="webhook" href="/docs/guides/handling-webhooks">
+    Signature verification, idempotency, retry semantics.
+  </Card>
+  <Card title="Ramping" icon="building-columns" href="/docs/guides/ramping">
+    Get your users their first USDC via Monerium SEPA or Transak.
+  </Card>
+</CardGroup>

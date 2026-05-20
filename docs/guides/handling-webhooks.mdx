@@ -1,0 +1,172 @@
+---
+title: Handling webhooks correctly
+description: The seven things to get right in your webhook handler — signature, idempotency, ack-then-process, ordering, replay, observability, and rotation.
+sidebar_position: 2
+---
+
+:::warning
+Webhook delivery ships at the Webhook emitter milestone. The patterns below are the production contract.
+:::
+
+Webhooks look deceptively simple — POST in, do something. The seven things below cover the failure modes that bite production integrations:
+
+## 1. Verify the signature, always
+
+Webhooks land at your public endpoint. Without signature verification, anyone who guesses the URL can send fake events. See [the signature reference](/docs/authentication/webhook-signatures) for the HMAC-SHA256 scheme and code samples in Node / Python / Go.
+
+Drop unsigned requests with 401 — don't even parse the body.
+
+## 2. Idempotency-key everything
+
+Webhooks retry on failure. Replays. Network blips. Your handler will receive the same `event_id` more than once over your integration's lifetime. The handler must produce the same effect on the 2nd, 3rd, and Nth delivery as on the first.
+
+Pattern: maintain a table `processed_webhook_events(event_id PRIMARY KEY, received_at)`. At the top of the handler:
+
+```sql
+INSERT INTO processed_webhook_events (event_id, received_at)
+VALUES ($1, NOW())
+ON CONFLICT (event_id) DO NOTHING
+RETURNING event_id;
+```
+
+If `RETURNING` is empty, the event was already processed — return 204 and bail.
+
+## 3. Acknowledge before processing
+
+Fibo's delivery timeout is 10 seconds. If your handler does work (DB writes, calls to other services, sending emails), you can easily exceed that.
+
+Pattern:
+
+```ts
+app.post('/fibo/webhooks', express.raw({ type: 'application/json' }), async (req, res) => {
+  await verifyOr401(req);
+  const event = JSON.parse(req.body.toString('utf8'));
+  if (await alreadySeen(event.event_id)) return res.sendStatus(204);
+
+  // Ack immediately
+  res.sendStatus(204);
+
+  // Process in the background — out of the request lifecycle
+  await processEvent(event).catch(logError);
+});
+```
+
+The work happens after the response is sent. If it fails, your own monitoring catches it; Fibo doesn't retry because we already saw 204. This is the correct trade-off: webhook retries are the wrong tool for "your downstream service is flaky" — you should have your own retry queue for that.
+
+## 4. Don't assume ordering
+
+Under retry pressure, events can arrive out of order. The most common case: your endpoint is down for 30 minutes. When it comes back up, events that arrived during downtime are re-delivered in the order their retries timed out, not in the order they originally happened.
+
+What this means in practice:
+
+- Don't write code that requires `tx.submitted` to arrive before `tx.confirmed`. Both arrive eventually; use the `data.status` field as the source of truth, not the order of delivery.
+- For wallet events, the `wallet.created` will always arrive before any `wallet.funded` (Fibo enforces ordering on the emit side per resource), but cross-resource ordering is not guaranteed.
+
+Build your handler as a state machine that handles events in any order:
+
+```ts
+async function processEvent(event) {
+  if (event.event_type === 'tx.confirmed') {
+    // Upsert the transaction in your DB — don't require it to exist already
+    await db.transaction.upsert({
+      where: { id: event.data.transaction_id },
+      create: { ...event.data },
+      update: { status: 'confirmed', completed_at: event.data.completed_at },
+    });
+  }
+}
+```
+
+## 5. Surface replay & backfill paths
+
+Two operational scenarios you'll hit eventually:
+
+**Your endpoint was down for 2 hours.** Some events exceeded the 7-retry budget and were abandoned. Use `POST /v1/webhook-events/{id}/replay` (per event) or the dashboard's bulk replay UI to push them back through.
+
+**You're adding a new event type to your handler.** You want to backfill historic events. Use `GET /v1/webhook-events?event_type=tx.confirmed&from=2026-01-01` to list them, then replay selectively.
+
+Both paths preserve the original `event_id`, so your idempotency check correctly distinguishes "first time I'm seeing this" from "replay of something I already processed".
+
+## 6. Log the request_id
+
+Every webhook delivery includes an `X-Fibo-Request-Id` header. Log it alongside your own logs. When something goes wrong — Fibo says it delivered, you say you didn't see it — the `request_id` resolves the ambiguity instantly.
+
+```ts
+log.info(
+  {
+    request_id: req.header('x-fibo-request-id'),
+    event_id: event.event_id,
+    event_type: event.event_type,
+  },
+  'fibo webhook received',
+);
+```
+
+## 7. Rotate the secret without downtime
+
+Webhook secret rotation supports a brief overlap window:
+
+1. Mint a new secret via the dashboard or `POST /v1/webhook-endpoints/{id}/rotate-secret`. The response contains both `secret` (new) and `previous_secret` (old, still valid).
+2. Deploy the new secret to your server. Your verifier should accept either secret during the rotation window:
+
+```ts
+const valid =
+  verify(req.body, sig, NEW_SECRET) ||
+  verify(req.body, sig, OLD_SECRET);
+```
+
+3. Once you've confirmed the new secret is working in production, call `POST /v1/webhook-endpoints/{id}/finalize-rotation`. After this point, only the new secret is accepted.
+
+Don't skip step 3 — leaving both secrets valid indefinitely doubles your attack surface.
+
+## Putting it together — annotated reference handler
+
+```ts
+import express from 'express';
+import crypto from 'crypto';
+import { db, log } from './lib';
+
+const app = express();
+const SECRETS = [process.env.FIBO_WEBHOOK_SECRET!]; // 2 entries during rotation
+const TOLERANCE_SECONDS = 300;
+
+app.post(
+  '/fibo/webhooks',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    // 1. Signature
+    const sigHeader = req.header('x-fibo-signature');
+    if (!sigHeader) return res.sendStatus(401);
+    const { t, v1 } = parseSig(sigHeader);
+    if (Math.abs(Date.now() / 1000 - t) > TOLERANCE_SECONDS) return res.sendStatus(401);
+    const ok = SECRETS.some((s) => verifyHmac(s, t, req.body, v1));
+    if (!ok) return res.sendStatus(401);
+
+    const event = JSON.parse(req.body.toString('utf8'));
+
+    // 2. Idempotency
+    const firstTime = await markProcessed(event.event_id);
+    if (!firstTime) return res.sendStatus(204);
+
+    // 3. Ack first
+    res.sendStatus(204);
+
+    // 6. Observability
+    log.info(
+      {
+        request_id: req.header('x-fibo-request-id'),
+        event_id: event.event_id,
+        event_type: event.event_type,
+      },
+      'fibo webhook',
+    );
+
+    // 4. Stateless handler — works in any delivery order
+    processEvent(event).catch((err) =>
+      log.error({ err, event_id: event.event_id }, 'webhook handler failed'),
+    );
+  },
+);
+```
+
+That's the whole pattern. The seven points above cover what we've seen go wrong across hundreds of webhook-driven integrations.

@@ -1,0 +1,133 @@
+---
+title: API reference
+description: REST conventions, base URLs, error format, pagination, and rate limits.
+sidebar_position: 1
+---
+
+:::warning
+Endpoint-level reference pages will land as each milestone ships. This page documents the cross-cutting conventions every endpoint follows.
+:::
+
+## Base URLs
+
+| Environment | Base URL |
+|---|---|
+| Production | `https://api.fibo.io` |
+| Sandbox | `https://api.sandbox.fibo.io` (TBD) |
+
+Versioning is path-based — every endpoint lives under `/v1/`. We don't introduce breaking changes within a version; new fields are added without warning, removed fields go through a 30-day deprecation cycle announced via the `api.deprecation` webhook.
+
+## Authentication
+
+`Authorization: Bearer {pk_… or sk_…}`. See [API keys](/docs/authentication/api-keys) for which key type each endpoint accepts.
+
+## Request format
+
+- `Content-Type: application/json` for any request with a body
+- All timestamps in ISO-8601 UTC (`2026-05-20T10:32:00Z`)
+- All monetary amounts as **decimal strings**, never floats (`"100.00"`, not `100.00`)
+- Pagination via cursor: `?cursor=…&limit=N` (default 25, max 100)
+
+## Response format
+
+Successful responses are bare resource JSON for GET on a single resource, or a paged envelope for collections:
+
+```json
+{
+  "data": [ { "id": "…", ... }, ... ],
+  "has_more": true,
+  "next_cursor": "eyJp…"
+}
+```
+
+`next_cursor` is opaque — don't parse it. Pass it back as `?cursor=…` to fetch the next page.
+
+## Error format
+
+All errors share the same shape, with appropriate HTTP status:
+
+```json
+{
+  "error": {
+    "code": "quote_expired",
+    "message": "Quote expired; re-fetch via POST /v1/quote",
+    "details": {
+      "quote_id": "qte_…",
+      "expired_at": "2026-05-20T10:30:00Z"
+    },
+    "request_id": "req_…"
+  }
+}
+```
+
+| Status | Meaning |
+|---|---|
+| 400 | Request payload validation failed. `error.details` carries field-level reasons. |
+| 401 | Missing / invalid / wrong-environment API key. |
+| 403 | Authenticated but not permitted (e.g., `pk_…` calling a privileged endpoint). |
+| 404 | Resource not found, or not owned by your tenant. |
+| 409 | Conflict — e.g., transaction already submitted, key already revoked. |
+| 410 | Resource expired (typically quotes). |
+| 422 | Semantically invalid — e.g., chain not enabled for your tenant, token not routable. |
+| 429 | Rate limit exceeded. Headers carry `Retry-After`. |
+| 503 | Provider failure (LiFi / Biconomy / Monerium / Transak unreachable). Retry with backoff. |
+
+`error.request_id` is the canonical trace id. Include it when contacting support — we can resolve any issue to the exact request log line within seconds with it.
+
+## Rate limits
+
+- Per `pk_…`: 60 requests / minute per source IP
+- Per `sk_…`: 600 requests / minute per key
+- Per tenant aggregate: 6000 requests / minute
+
+Rate limit headers on every response:
+
+```
+X-RateLimit-Limit:     600
+X-RateLimit-Remaining: 594
+X-RateLimit-Reset:     1716212405
+```
+
+429 responses include a `Retry-After` header in seconds. Honor it — bursting through 429s gets your key temporarily quarantined.
+
+## Idempotency
+
+Mutating endpoints (`POST` / `PUT` / `DELETE`) accept an optional `Idempotency-Key` header:
+
+```http
+POST /v1/quote HTTP/1.1
+Authorization: Bearer pk_live_…
+Idempotency-Key: 5d8a3b2c-1234-…
+Content-Type: application/json
+```
+
+The same key + same body = the same response (cached for 24 hours). Different body with the same key = `409 idempotency_conflict`. Use a UUIDv4 per logical operation.
+
+GET endpoints are naturally idempotent and ignore the header.
+
+## CORS
+
+The Fibo API accepts cross-origin requests from any origin for endpoints scoped to `pk_…` keys. `sk_…` endpoints reject browser-origin requests by design (the `Origin` header presence triggers a 403) — they're meant for server-to-server only.
+
+## Webhooks vs polling
+
+Polling is supported but discouraged. Every state change Fibo manages is exposed via a webhook event — see the [event catalog](/docs/webhooks/events). For most integrations, the only polling you should need is `GET /v1/transactions/{id}` for a "where's my transaction" UI, and even that is optional if you're rendering directly from webhook state.
+
+## Endpoint coverage
+
+| Resource | Status |
+|---|---|
+| `/v1/users` | Ships with API key middleware milestone |
+| `/v1/api-keys` | Ships with API key middleware milestone |
+| `/v1/quote` | Live (PoC contract; production-shape stable) |
+| `/v1/prepare-tx` | Live |
+| `/v1/submit` | Live |
+| `/v1/execute-signed-quote` | Live |
+| `/v1/transactions/{id}` | Live |
+| `/v1/balances` | Ships with PoC integration into production |
+| `/v1/tokens` | Ships with PoC integration into production |
+| `/v1/webhook-endpoints` | Ships with Webhook emitter milestone |
+| `/v1/webhook-events` | Ships with Webhook emitter milestone |
+| `/v1/me/addresses` | Ships with API key middleware milestone |
+
+Per-endpoint reference pages will land here as each milestone ships.

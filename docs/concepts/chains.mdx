@@ -1,0 +1,54 @@
+---
+title: Supported chains
+description: Networks, tokens, and DeFi protocols Fibo currently supports.
+sidebar_position: 4
+---
+
+## Networks
+
+:::note
+The matrix below reflects mainnet support. Sandbox / testnet equivalents exist for each but are issued on request — drop us a line if you need a specific testnet you don't see here.
+:::
+
+| Chain | Network ID | Native | Wallets | Gasless | Swap | Yield | Ramping |
+|---|---|---|---|---|---|---|---|
+| Ethereum | 1 | ETH | ✓ | ✓ (MEE) | ✓ | Aave, Beefy | Monerium (EURe), Transak |
+| Polygon | 137 | MATIC | ✓ | ✓ (MEE) | ✓ | Aave, Beefy | Transak |
+| Base | 8453 | ETH | ✓ | ✓ (MEE) | ✓ | Aave, Beefy | Transak |
+| Optimism | 10 | ETH | ✓ | ✓ (MEE) | ✓ | Aave, Beefy | Transak |
+| Arbitrum | 42161 | ETH | ✓ | ✓ (MEE) | ✓ | Aave, Beefy | Transak |
+| Avalanche C | 43114 | AVAX | ✓ | ✓ (MEE) | ✓ | Aave, Beefy | Transak |
+| Solana | 501 (Fibo internal id) | SOL | ✓ | ✓ (relay fee-payer) | ✓ | — | Transak |
+| Bitcoin | "bitcoin" | BTC | ✓ (Taproot) | — (user pays from UTXO) | ✓ (LiFi via wrapped BTC) | — | Transak |
+
+## Tokens
+
+The supported token list per chain is large and shifts over time — LiFi's coverage of 60+ DEX / bridge protocols means most reasonably liquid ERC-20s on the chains above are routable. The canonical list is exposed via:
+
+```
+GET /v1/tokens?chain_id={id}
+```
+
+Common stables and majors (USDC, USDT, DAI, WETH, native gas tokens) are available on every supported chain. Long-tail tokens are routable as long as LiFi can find a path — quote calls will fail with `404 no_route` for tokens it can't reach.
+
+## DeFi protocols
+
+| Protocol | Family | Chains | What it does | Notes |
+|---|---|---|---|---|
+| Aave V3 | Lending | All EVM | Supply / borrow against deposited assets, earn variable APY | Yield is denominated in aTokens (e.g., aUSDC on Polygon) |
+| Beefy | Auto-compounded vaults | All EVM | Yield-optimizer vaults that compound underlying protocol rewards | Strategy auto-selected per vault; rebalancing handled by Beefy |
+
+Both protocols are accessed gaslessly via MEE super-transactions. Deposits, withdrawals, and reward harvesting are all wrapped in the same `prepare` / `submit` lifecycle as swaps.
+
+## Ramping providers
+
+| Provider | Direction | Geography | KYC | Settlement currency | Integration |
+|---|---|---|---|---|---|
+| Monerium | EUR → EURe / EURe → EUR | EEA (SEPA-eligible countries) | KYC-light via Sumsub share token if you already use Sumsub; full Monerium KYC otherwise | EURe stablecoin (1:1 EUR) | Opt-in connector — you sign Monerium's distributor agreement directly |
+| Transak | Card / bank → 100+ tokens | Global (varies by token + country) | Transak handles fully | Native asset on destination chain | Opt-in connector — you sign Transak's terms directly |
+
+See the [ramping guide](/docs/guides/ramping) for how the contractual model works.
+
+## Anything missing?
+
+Fibo's chain list is curated to chains where we've validated gas sponsorship economics and DeFi protocol coverage. If you need a chain not on the list (e.g., Polygon zkEVM, Linea, Mantle, Solana SVM appchains), tell us — adding a chain is a backend-only change, not a protocol redesign.

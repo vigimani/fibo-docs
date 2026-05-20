@@ -1,0 +1,118 @@
+.hero {
+  background: linear-gradient(
+    135deg,
+    var(--ifm-color-primary) 0%,
+    var(--ifm-color-primary-darker) 100%
+  );
+  color: #ffffff;
+  padding: 5rem 0 4rem;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.eyebrow {
+  margin: 0 0 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.headline {
+  margin: 0;
+  font-size: clamp(2rem, 4.5vw, 3.4rem);
+  font-weight: 700;
+  line-height: 1.1;
+  max-width: 22ch;
+}
+
+.subhead {
+  margin: 1.25rem 0 2rem;
+  font-size: clamp(1.05rem, 1.5vw, 1.25rem);
+  max-width: 50ch;
+  opacity: 0.95;
+}
+
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.ctaPrimary,
+.ctaSecondary {
+  display: inline-block;
+  padding: 0.75rem 1.4rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.ctaPrimary {
+  background-color: #ffffff;
+  color: var(--ifm-color-primary-darker);
+}
+
+.ctaPrimary:hover {
+  text-decoration: none;
+  color: var(--ifm-color-primary-darkest);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.ctaSecondary {
+  background-color: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.ctaSecondary:hover {
+  text-decoration: none;
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: #ffffff;
+}
+
+.section,
+.sectionAlt {
+  padding: 4rem 0;
+}
+
+.sectionAlt {
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .sectionAlt {
+  background-color: var(--ifm-color-emphasis-200);
+}
+
+.section h2,
+.sectionAlt h2 {
+  margin: 0 0 1.5rem;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 700;
+}
+
+.bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.bullets li {
+  padding: 1.25rem;
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  line-height: 1.55;
+}

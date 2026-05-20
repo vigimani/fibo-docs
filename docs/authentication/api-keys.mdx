@@ -1,0 +1,81 @@
+---
+title: API keys
+description: The two key types Fibo issues per environment and how to use them safely.
+sidebar_position: 1
+---
+
+:::warning
+Self-serve key management ships at the API key middleware milestone. The shapes below are the production API contract; the path to obtaining keys is currently white-glove during onboarding.
+:::
+
+## Two key types, two environments
+
+For every tenant, Fibo issues four keys total — two key types × two environments:
+
+| Format | Where it goes | What it can do |
+|---|---|---|
+| `pk_test_…` | Browser bundle | Authenticate users via Privy, read public tenant config, mint short-lived session tokens |
+| `pk_live_…` | Browser bundle (production) | Same as `pk_test_…`, against live data |
+| `sk_test_…` | Your server | Everything `pk_…` can do, plus: create / update users, trigger refunds, rotate webhook secrets, read all tenant transactions |
+| `sk_live_…` | Your server (production) | Same as `sk_test_…`, against live data and live gas tanks |
+
+The `_test_` and `_live_` infixes hard-separate environments — a `_live_` request will reject a `_test_` key with `401 invalid_environment` and vice versa.
+
+## Where keys go
+
+### Publishable keys — browser
+
+`pk_…` keys are inlined in your frontend bundle. They're public by design and have a narrow capability surface:
+
+- Mint a Privy session for a logged-in user
+- Read tenant-public configuration (enabled chains, feature flags)
+- Submit Fibo-orchestrated transactions on behalf of the user *whose session token accompanies the request*
+
+A leaked `pk_…` is recoverable — rotating it invalidates the old key without taking down your integration; the SDK reads from `process.env.NEXT_PUBLIC_FIBO_PUBLISHABLE_KEY` (or your framework's equivalent) so a deploy is enough.
+
+### Secret keys — server-only
+
+`sk_…` keys grant tenant-scoped admin authority. They go in your server environment, never in:
+
+- Client-side code (`NEXT_PUBLIC_*`, browser bundles, source maps)
+- Mobile binaries
+- Git history (use a secret manager)
+- Logs (Fibo's own server logs redact `sk_…` patterns; yours should too)
+
+If a `sk_…` is exposed, treat it as a P0 incident: rotate immediately via the dashboard or `POST /v1/api-keys/{id}/rotate`, then audit recent webhook deliveries and transaction history for unauthorized activity.
+
+## Sending a key
+
+All requests authenticate via the `Authorization` header with a `Bearer` token:
+
+```http
+GET /v1/users HTTP/1.1
+Host: api.fibo.io
+Authorization: Bearer sk_live_abc123...
+```
+
+No other headers are required. Content-Type is `application/json` for any request with a body.
+
+## Rotation
+
+Both `pk_…` and `sk_…` keys can be rotated without downtime:
+
+1. Mint a new key of the same type / environment via the dashboard or `POST /v1/api-keys`.
+2. Deploy the new key value to wherever it's used.
+3. Revoke the old key via `DELETE /v1/api-keys/{id}` — past requests authenticated with it remain valid; only future requests are rejected.
+
+A revoked key's `key_prefix` is kept indexed for 90 days so audit logs remain readable.
+
+## Tenant scoping
+
+Every API key is bound to a single tenant. There's no cross-tenant API key — if you have multiple tenants (e.g., staging-as-its-own-tenant, plus production, plus a sandbox for a customer), each tenant has its own key set.
+
+The tenant identity is derived from the key on every request; you never pass a `tenant_id` parameter explicitly. Attempting to operate against a different tenant's data (by user-id, transaction-id, etc.) returns `404 not_found` — the resource is invisible to you because it belongs to another tenant.
+
+## Quick checklist
+
+- [ ] `sk_…` is in your server environment, never the client
+- [ ] `pk_…` is loaded from a public env var (no secret manager needed)
+- [ ] You've revoked any keys exposed in the past
+- [ ] Your CI doesn't echo `sk_…` values into build logs
+- [ ] You can rotate either key in under 5 minutes if needed

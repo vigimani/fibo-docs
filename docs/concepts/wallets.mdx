@@ -1,0 +1,70 @@
+---
+title: Embedded wallets
+description: How Fibo provisions multi-chain wallets, where the keys live, and what the user signing experience looks like.
+sidebar_position: 2
+---
+
+## What gets provisioned
+
+When a user signs in via the `FiboProvider`, embedded wallets are created on the chains you've enabled for your tenant. The default set covers everything Fibo can route across:
+
+| Chain family | Networks | Provisioning |
+|---|---|---|
+| EVM | Ethereum mainnet, Polygon, Base, Optimism, Arbitrum, Avalanche C-chain | Automatic on first login. Same EOA address across all EVM networks (CREATE2 derivation). |
+| Solana | Mainnet-beta | Automatic on first login. |
+| Bitcoin | Mainnet (Taproot) | Created explicitly the first time the user enters a BTC flow, or via an optional "Create BTC wallet" CTA. Not auto-provisioned because of the lower frequency of use and the cost of unused wallets in the user's account view. |
+
+You can scope provisioning per tenant — e.g., disable Bitcoin if your product is EVM-only — via the dashboard or `POST /v1/tenant-config` (ships with the API key middleware milestone).
+
+## Where the keys live
+
+Embedded wallets are powered by [Privy](https://privy.io). The private key for each wallet:
+
+1. Is generated inside a Trusted Execution Environment (Intel SGX) on Privy's infrastructure.
+2. Never leaves the TEE in plaintext. The user authenticates via a method you configure (email, OAuth, passkey, 2FA), and Privy enforces the auth before any signing operation.
+3. Is **not held by Fibo**. Fibo orchestrates transactions; the user signs them. We can't move funds without the user's authorization.
+
+This is the foundation of the non-custodial property. If Fibo disappeared tomorrow, your users could log in to [privy.io](https://privy.io) with the same email and export their wallets — Privy's self-service export flow returns the private key to the user's device for re-import elsewhere.
+
+## What signing looks like for the user
+
+The first time a user initiates a transaction, the SDK prompts them to enroll a **passkey** (web) or **biometric** (React Native, when shipped). After enrollment, each subsequent transaction shows the same prompt — Face ID, Touch ID, Windows Hello, hardware key — backed by the platform's secure enclave.
+
+:::note
+Passkey enrollment is one-time per device. Users who already have a passkey for your platform don't get an extra prompt — Fibo reuses it.
+:::
+
+EVM gasless swaps via MEE require **two** signatures in the same flow:
+
+1. An **EIP-7702 authorization** that grants Fibo's Biconomy account temporary, scoped permission to execute on behalf of the user's EOA — for that one transaction.
+2. The **MEE quote hash**, which binds the authorization to the exact route + fees.
+
+Solana flows are single-signature (the user signs the V0 transaction, Fibo's fee-payer co-signs server-side). Bitcoin flows are one signature per PSBT input.
+
+Your UI surface for all of this is a single `swap()` / `transfer()` / `supply()` call on the SDK. The hooks handle the multi-step ceremony.
+
+## Same wallet, different products
+
+If your user already has wallets through another Fibo-powered product (the mobile app or another B2B integrator), and they sign in with the same email, **they get the same wallets**. Same addresses, same balances, same history.
+
+This is intentional for the MVP — it minimizes friction and avoids the "I have three sets of crypto on three different sites" problem. The cross-product identity policy is being formalized; until then, the default is "shared identity by email". If your product has stronger isolation requirements (e.g., you want a separate wallet set even for the same email), [contact us](https://fibo.io/contact) — there's an opt-in `walletScope: 'tenant'` flag landing with the API key middleware milestone.
+
+## What you, the integrator, see
+
+Three things land on your server via webhook when a wallet exists:
+
+```json
+{
+  "event_type": "wallet.created",
+  "user_id": "usr_…",                  // Fibo's user id
+  "external_id": "your-user-123",      // what you passed in FiboProvider.externalUserId
+  "addresses": {
+    "evm":     "0xabc…",
+    "solana":  "ABC…XYZ",
+    "bitcoin": "bc1p…"                 // only present if BTC wallet was created
+  },
+  "created_at": "2026-05-20T10:32:00Z"
+}
+```
+
+Store the mapping `external_id → addresses` once; subsequent events reference `user_id` only. The wallet **never changes** for a given user — re-logins resurface the same addresses indefinitely.
