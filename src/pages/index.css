@@ -30,12 +30,6 @@
   50% { background-position: 100% 50%; }
 }
 
-@keyframes landing-float-orb {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -20px) scale(1.05); }
-  66% { transform: translate(-20px, 20px) scale(0.95); }
-}
-
 @keyframes landing-pulse-dot {
   0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18); }
   50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
@@ -178,53 +172,14 @@
 .landing-v3 .btn:hover .btn-arrow { transform: translateX(3px); }
 
 /* HERO ============================================================== */
+/* Background: v2's clean "fond clair" — single subtle radial gradient
+ * at the top, no orbs / no grid. Lets the SVG illustration carry the
+ * visual weight on the right side. */
 .landing-v3 .hero {
   padding: 88px 0 80px;
   position: relative;
   overflow: hidden;
-}
-.landing-v3 .hero-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-.landing-v3 .hero-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.55;
-  animation: landing-float-orb 18s ease-in-out infinite;
-}
-.landing-v3 .hero-orb.o1 {
-  width: 480px; height: 480px;
-  background: radial-gradient(circle, #a78bfa 0%, transparent 70%);
-  top: -120px; left: -80px;
-}
-.landing-v3 .hero-orb.o2 {
-  width: 420px; height: 420px;
-  background: radial-gradient(circle, #5B44F9 0%, transparent 70%);
-  top: 80px; right: -100px;
-  animation-delay: -6s;
-}
-.landing-v3 .hero-orb.o3 {
-  width: 380px; height: 380px;
-  background: radial-gradient(circle, #c4b5fd 0%, transparent 70%);
-  bottom: -100px; left: 40%;
-  animation-delay: -12s;
-  opacity: 0.4;
-}
-.landing-v3 .hero-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(91, 68, 249, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(91, 68, 249, 0.06) 1px, transparent 1px);
-  background-size: 56px 56px;
-  -webkit-mask-image: radial-gradient(ellipse 90% 60% at center, black 30%, transparent 80%);
-  mask-image: radial-gradient(ellipse 90% 60% at center, black 30%, transparent 80%);
-  pointer-events: none;
-  z-index: 0;
+  background: radial-gradient(ellipse at top, rgba(91, 68, 249, 0.07) 0%, transparent 60%);
 }
 .landing-v3 .hero .container { position: relative; z-index: 1; }
 .landing-v3 .hero-inner {

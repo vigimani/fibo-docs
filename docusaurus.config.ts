@@ -61,11 +61,14 @@ const config: Config = {
   themeConfig: {
     image: 'img/social-card.png',
     navbar: {
-      title: 'Fibo SaaS',
+      // Title omitted intentionally — the brand mark + wordmark live entirely
+      // inside the SVG logo so they match the v3 presentation deck.
       logo: {
         alt: 'Fibo',
         src: 'img/logo.svg',
         srcDark: 'img/logo-dark.svg',
+        width: 124,
+        height: 32,
       },
       items: [
         {

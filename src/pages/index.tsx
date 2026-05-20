@@ -71,12 +71,6 @@ export default function Home(): JSX.Element {
       <div className="landing-v3">
         {/* HERO ============================================== */}
         <section className="hero">
-          <div className="hero-bg">
-            <div className="hero-orb o1"></div>
-            <div className="hero-orb o2"></div>
-            <div className="hero-orb o3"></div>
-          </div>
-          <div className="hero-grid"></div>
           <div className="container">
             <div className="hero-inner">
               <div className="hero-text reveal in">
