@@ -13,7 +13,7 @@ Fibo is in active development. This page is the honest reference for what's actu
 - **API key management (M2)**: self-serve mint / list / revoke / rotate via [`/v1/api-keys`](/docs/api-reference/api-keys/create). `pk_*` and `sk_*` keys, hard-separated `test` / `live` environments, SHA-256 hashed at rest, replaces the M1 bearer token. CLI bootstrap (`npm run mint:key`) for issuing the first `sk_*` of a new tenant.
 - **Webhook delivery (M3)**: register endpoints via [`/v1/webhook-endpoints`](/docs/api-reference/webhook-endpoints/create), HMAC-SHA256 signing with rotation overlap, exponential retry (7 attempts over ~67h), [replay + audit log](/docs/api-reference/webhook-events/list). `tx.prepared` / `tx.submitted` / `tx.failed` emit today; wallet / KYC events follow as their orchestration paths land.
 - **Usage metering (M4)**: per-tenant monthly counters via [`/v1/usage`](/docs/api-reference/usage/current) + [`/v1/usage/history`](/docs/api-reference/usage/history). `active_users` computed at query time (always accurate); `wallets_created` + `tx_count` maintained as atomic UPSERT counters bumped on the originating events. `usd_volume` wiring deferred until LiFi USD price feed is plumbed through.
-- **Backend deployed (M5.2 partial)**: live on AWS ECS Fargate (Express Mode) in eu-west-3. Single 0.25 vCPU / 0.5 GB Fargate task, HTTPS endpoint, all M2/M3/M4 surfaces reachable. The custom domain `api.fibo.io` is the next step (ACM cert + DNS CNAME).
+- **Backend deployed (M5.2 partial)**: live on AWS ECS Fargate (Express Mode) in eu-west-3. Single 0.25 vCPU / 0.5 GB Fargate task, HTTPS endpoint, all M2/M3/M4 surfaces reachable. The custom domain `api.fibo-crypto.fr` is the next step (ACM cert + DNS CNAME).
 - **CLI (M5.1)**: `@fibo/cli` — `fibo keys|webhooks|events|usage <subcommand>` against any backend URL. Source-only today; public npm publication post-M5.
 - **SDK v0.1 (M5.3)**: `@fibo/react-sdk` — `<FiboProvider />` + `useFiboAuth()` + `useFiboApi()` + typed `createFiboClient()` factory. Privy embedded wallets configured automatically; integrators don't install Privy directly (per ADR 0003). Distributed as a tarball today; public npm publication post-M5. Higher-level hooks (`useFiboSwap`, `useFiboBalance`, `useFiboWallet`, etc.) ship in 0.2+.
 - **Reference React frontend**: an end-to-end working PoC web app that exercises the full quote → prepare → 2-signature → execute → confirmation flow. We share its code with onboarding integrators.
@@ -23,7 +23,7 @@ Fibo is in active development. This page is the honest reference for what's actu
 
 | Milestone | What it ships | Target |
 |---|---|---|
-| **M5** — Sandbox + dashboard + CLI | Dedicated `api.sandbox.fibo.io`, web dashboard, `fibo` CLI for key + endpoint management, public npm publication of `@fibo/react-sdk` | Q3 2026 |
+| **M5** — Sandbox + dashboard + CLI | Dedicated `api.sandbox.fibo-crypto.fr`, web dashboard, `fibo` CLI for key + endpoint management, public npm publication of `@fibo/react-sdk` | Q3 2026 |
 
 Dates are best-effort. We ship when the work is right; we publish status changes on the [blog](/blog).
 
@@ -35,7 +35,7 @@ These surfaces appear in the docs as production-shape because the contract is fi
 |---|---|---|
 | `@fibo/react-sdk` on npm | Distributed as a pinned tarball to the first cohort. Contact sales for access. | M5 |
 | Dashboard UI (key rotation, webhook config, replay) | All admin operations are via API call or via the Fibo team. | M5 |
-| `api.sandbox.fibo.io` (dedicated sandbox base URL) | Sandbox runs against the same backend with `_test_` keys. | M5 |
+| `api.sandbox.fibo-crypto.fr` (dedicated sandbox base URL) | Sandbox runs against the same backend with `_test_` keys. | M5 |
 | `wallet.created`, `tx.confirmed` and other long-tail events | Not yet emitted (M3 ships only `tx.prepared` / `tx.submitted` / `tx.failed`). Payload contracts published; handlers can be written now. | Phase 1 (wallet creation orchestration + on-chain watcher) |
 
 ## What's on the longer-term roadmap
@@ -52,4 +52,4 @@ Most pages describe production-shape behavior — the contracts are finalized so
 
 If you're evaluating Fibo today, the trade-off is honest: **the architecture and security model are stable and reviewable now**, but you'll need to coordinate with us for credentials, webhook endpoints, and SDK access until M5 lands. Current integrators are comfortable with that — the white-glove path resolves any setup question within a business day.
 
-Questions? [Contact sales](https://fibo.io/contact) or read the [introduction](/docs/introduction) to start.
+Questions? [Contact sales](https://fibo-crypto.fr/contact) or read the [introduction](/docs/introduction) to start.

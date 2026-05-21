@@ -25,7 +25,7 @@ Requires a **secret key** (`sk_*`) or the admin token.
 
 ```http
 POST /v1/webhook-endpoints HTTP/1.1
-Host: api.fibo.io
+Host: api.fibo-crypto.fr
 Authorization: Bearer sk_test_…
 Content-Type: application/json
 
@@ -69,7 +69,7 @@ The `secret` field is the only place the plaintext appears. Subsequent reads (`G
 ## curl
 
 ```bash
-curl -X POST https://api.fibo.io/v1/webhook-endpoints \
+curl -X POST https://api.fibo-crypto.fr/v1/webhook-endpoints \
   -H "Authorization: Bearer sk_test_..." \
   -H "Content-Type: application/json" \
   -d '{

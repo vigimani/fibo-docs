@@ -50,7 +50,7 @@ All requests authenticate via the `Authorization` header with a `Bearer` token:
 
 ```http
 GET /v1/users HTTP/1.1
-Host: api.fibo.io
+Host: api.fibo-crypto.fr
 Authorization: Bearer sk_live_abc123...
 ```
 
@@ -63,7 +63,7 @@ Both `pk_…` and `sk_…` keys can be rotated. Two patterns:
 **Atomic** — single API call, no overlap window:
 
 ```bash
-curl -X POST https://api.fibo.io/v1/api-keys/{id}/rotate \
+curl -X POST https://api.fibo-crypto.fr/v1/api-keys/{id}/rotate \
   -H "Authorization: Bearer sk_test_..."
 ```
 

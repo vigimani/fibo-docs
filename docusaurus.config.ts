@@ -8,7 +8,7 @@ const config: Config = {
     'Non-custodial crypto infrastructure for B2B platforms. Wallets, gasless transactions, swaps, yield, ramping — without becoming a crypto company.',
   favicon: 'img/favicon.svg',
 
-  url: 'https://docs.fibo.io',
+  url: 'https://docs.fibo-crypto.fr',
   baseUrl: '/',
 
   organizationName: 'vigimani',
@@ -88,7 +88,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://fibo.io/contact',
+          href: 'https://fibo-crypto.fr/contact',
           label: 'Contact sales',
           position: 'right',
           className: 'navbar-cta',
@@ -116,14 +116,14 @@ const config: Config = {
             },
             {
               label: 'Status',
-              href: 'https://status.fibo.io',
+              href: 'https://status.fibo-crypto.fr',
             },
           ],
         },
         {
           title: 'Company',
           items: [
-            { label: 'Contact sales', href: 'https://fibo.io/contact' },
+            { label: 'Contact sales', href: 'https://fibo-crypto.fr/contact' },
           ],
         },
       ],

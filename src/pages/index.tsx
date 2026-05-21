@@ -261,7 +261,7 @@ export default function Home(): JSX.Element {
                   <g transform="translate(40 380)">
                     <rect x="0" y="0" width="110" height="36" rx="18" fill="white" stroke="#e2e8f0" strokeWidth="1" filter="url(#card-shadow)" />
                     <circle cx="18" cy="18" r="6" fill="#10b981" />
-                    <text x="32" y="23" fontFamily="JetBrains Mono" fontSize="11" fill="#0a0a0a" fontWeight="600">api.fibo.io</text>
+                    <text x="32" y="23" fontFamily="JetBrains Mono" fontSize="11" fill="#0a0a0a" fontWeight="600">api.fibo-crypto.fr</text>
                   </g>
                 </svg>
               </div>
@@ -750,7 +750,7 @@ export default function Home(): JSX.Element {
                 </ul>
                 <div className="tier-cta">
                   <a
-                    href="mailto:hello@fibo.io?subject=Starter%20plan"
+                    href="mailto:hello@fibo-crypto.fr?subject=Starter%20plan"
                     className="btn btn-secondary"
                   >
                     Get started
@@ -793,7 +793,7 @@ export default function Home(): JSX.Element {
                 </ul>
                 <div className="tier-cta">
                   <a
-                    href="mailto:hello@fibo.io?subject=Growth%20plan"
+                    href="mailto:hello@fibo-crypto.fr?subject=Growth%20plan"
                     className="btn btn-primary"
                   >
                     Book a demo
@@ -825,7 +825,7 @@ export default function Home(): JSX.Element {
                 </ul>
                 <div className="tier-cta">
                   <a
-                    href="mailto:hello@fibo.io?subject=Enterprise%20inquiry"
+                    href="mailto:hello@fibo-crypto.fr?subject=Enterprise%20inquiry"
                     className="btn btn-secondary"
                   >
                     Contact us
@@ -927,7 +927,7 @@ export default function Home(): JSX.Element {
                   <strong>Backend</strong>: <code>@fibo/node-sdk</code> (Node.js,
                   TypeScript-first). If your backend runs Python, Go, Ruby or
                   another language, our public REST API works directly. Full
-                  documentation at <code>docs.fibo.io</code>.
+                  documentation at <code>docs.fibo-crypto.fr</code>.
                 </div>
               </details>
 
@@ -959,7 +959,7 @@ export default function Home(): JSX.Element {
             </p>
             <div className="ctas reveal reveal-delay-2">
               <a
-                href="mailto:hello@fibo.io?subject=Demo%20request"
+                href="mailto:hello@fibo-crypto.fr?subject=Demo%20request"
                 className="btn btn-primary btn-lg"
               >
                 Book a demo

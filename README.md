@@ -1,6 +1,6 @@
 # Fibo SaaS — public client documentation
 
-The published site lives at **docs.fibo.io**. This repo is the source.
+The published site lives at **docs.fibo-crypto.fr**. This repo is the source.
 
 Built with [Docusaurus 3](https://docusaurus.io). Three sections:
 

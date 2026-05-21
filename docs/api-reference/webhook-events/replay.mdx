@@ -58,7 +58,7 @@ Requires `sk_*` for the same tenant, or admin token.
 ## curl
 
 ```bash
-curl -X POST https://api.fibo.io/v1/webhook-events/<event-uuid>/replay \
+curl -X POST https://api.fibo-crypto.fr/v1/webhook-events/<event-uuid>/replay \
   -H "Authorization: Bearer sk_test_..."
 ```
 
@@ -68,10 +68,10 @@ There is no bulk-replay endpoint in v1. To replay many events, iterate the list:
 
 ```bash
 # Re-fire every abandoned event from a specific outage window
-curl "https://api.fibo.io/v1/webhook-events?status=abandoned&from=2026-05-19T16:00:00Z" \
+curl "https://api.fibo-crypto.fr/v1/webhook-events?status=abandoned&from=2026-05-19T16:00:00Z" \
   -H "Authorization: Bearer sk_test_..." | \
   jq -r '.data[].id' | \
-  xargs -I{} curl -X POST "https://api.fibo.io/v1/webhook-events/{}/replay" \
+  xargs -I{} curl -X POST "https://api.fibo-crypto.fr/v1/webhook-events/{}/replay" \
     -H "Authorization: Bearer sk_test_..."
 ```
 

@@ -25,7 +25,7 @@ Requires `sk_*` or admin token.
 
 ```http
 GET /v1/webhook-events?event_type=tx.submitted&status=delivered&from=2026-05-20T00:00:00Z HTTP/1.1
-Host: api.fibo.io
+Host: api.fibo-crypto.fr
 Authorization: Bearer sk_test_…
 ```
 
@@ -77,11 +77,11 @@ Authorization: Bearer sk_test_…
 
 ```bash
 # Recent failures only
-curl "https://api.fibo.io/v1/webhook-events?status=failed&limit=20" \
+curl "https://api.fibo-crypto.fr/v1/webhook-events?status=failed&limit=20" \
   -H "Authorization: Bearer sk_test_..."
 
 # All tx.failed events in the last 24h
-curl "https://api.fibo.io/v1/webhook-events?event_type=tx.failed&from=2026-05-19T16:00:00Z" \
+curl "https://api.fibo-crypto.fr/v1/webhook-events?event_type=tx.failed&from=2026-05-19T16:00:00Z" \
   -H "Authorization: Bearer sk_test_..."
 ```
 

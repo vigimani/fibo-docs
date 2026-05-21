@@ -8,7 +8,7 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
 :::info Pre-release
-This quickstart targets the production-shape API. Self-serve key minting and the npm package are still in flight — see [/docs/status](/docs/status) for what's wired today vs. shipping in M2/M5. The white-glove onboarding path delivers `pk_test_*` + `sk_test_*` + a tarball SDK within 1 business day; [contact sales](https://fibo.io/contact).
+This quickstart targets the production-shape API. Self-serve key minting and the npm package are still in flight — see [/docs/status](/docs/status) for what's wired today vs. shipping in M2/M5. The white-glove onboarding path delivers `pk_test_*` + `sk_test_*` + a tarball SDK within 1 business day; [contact sales](https://fibo-crypto.fr/contact).
 :::
 
 ## Before you start
@@ -22,7 +22,7 @@ You'll need:
 - **A React framework** — Next.js (Pages or App router), Vite + React, Remix, Astro with `client:only="react"`, or plain React (CRA / similar). See [Frameworks](/docs/sdk/installation#frameworks).
 - **A package manager** — npm, pnpm, or yarn. All three are tested.
 - **A server endpoint** for receiving Fibo webhooks. HTTPS-only — Fibo refuses to deliver to `http://`. For prototyping, an ngrok / Cloudflare Tunnel URL works.
-- **A Fibo API key pair** (`pk_test_*` + `sk_test_*`). Currently issued during onboarding — [contact sales](https://fibo.io/contact). Self-serve provisioning is in flight.
+- **A Fibo API key pair** (`pk_test_*` + `sk_test_*`). Currently issued during onboarding — [contact sales](https://fibo-crypto.fr/contact). Self-serve provisioning is in flight.
 
 If you're starting from a blank Next.js app:
 
@@ -57,7 +57,7 @@ npm install @fibo/react-sdk
 ```
 
 :::info Pre-release
-The npm package is published to a private registry today; public npm publication targets M5. Onboarding gives you a pinned tarball URL you can use in `package.json` as `"@fibo/react-sdk": "https://cdn.fibo.io/sdk/..."`. Drop-in replacement when the public package ships.
+The npm package is published to a private registry today; public npm publication targets M5. Onboarding gives you a pinned tarball URL you can use in `package.json` as `"@fibo/react-sdk": "https://cdn.fibo-crypto.fr/sdk/..."`. Drop-in replacement when the public package ships.
 :::
 
 The SDK has Privy as a transitive dependency — you don't need to install or configure Privy yourself.

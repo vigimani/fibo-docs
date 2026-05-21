@@ -27,7 +27,7 @@ The first `sk_*` of a fresh tenant is bootstrapped by Fibo during onboarding, or
 
 ```http
 POST /v1/api-keys HTTP/1.1
-Host: api.fibo.io
+Host: api.fibo-crypto.fr
 Authorization: Bearer sk_test_…
 Content-Type: application/json
 
@@ -71,7 +71,7 @@ The `key` field is the plaintext API key. Subsequent reads (`GET /v1/api-keys`) 
 ## curl
 
 ```bash
-curl -X POST https://api.fibo.io/v1/api-keys \
+curl -X POST https://api.fibo-crypto.fr/v1/api-keys \
   -H "Authorization: Bearer sk_test_..." \
   -H "Content-Type: application/json" \
   -d '{
