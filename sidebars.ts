@@ -6,7 +6,13 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Get started',
       collapsed: false,
-      items: ['introduction', 'quickstart', 'status'],
+      items: [
+        'introduction',
+        'getting-started/index',
+        'quickstart',
+        'getting-started/sandbox-vs-live',
+        'status',
+      ],
     },
     {
       type: 'category',

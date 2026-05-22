@@ -1,0 +1,178 @@
+---
+title: Getting Started
+description: From signup to your first Fibo API call in ~15 minutes. Step-by-step walkthrough of the dashboard, key minting, SDK install, and webhook setup.
+sidebar_position: 1
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+This is the **end-to-end walkthrough** for integrating Fibo. Plan ~15 minutes from "I've never heard of Fibo" to "my first API call succeeded".
+
+Already familiar with the architecture? Jump to the [Quickstart](/docs/quickstart) for the condensed React-only version.
+
+## Step 0 — Sign up at the dashboard
+
+1. Go to **[dashboard.fibo-crypto.fr](https://dashboard.fibo-crypto.fr)**.
+2. Click **Sign in** — enter your work email. You'll receive a magic link from Privy; open it on the same device.
+3. You're redirected to **`/onboarding/apply`** — fill the short form:
+   - **Company name** — your legal entity or product name
+   - **Company website** — a real URL we can visit for a quick sanity check
+   - **How will you integrate Fibo?** — 1-2 paragraphs about your use case (helps us speed up the review)
+   - **Authorization checkbox** — confirm you're allowed to register this company
+4. Submit. You land on **`/keys`** with a yellow sandbox banner: **"Your application is being reviewed. Sandbox mode is active — test keys + test webhooks unlock immediately."**
+
+You don't have to wait for approval to start integrating. The next 4 steps work entirely in sandbox.
+
+## Step 1 — Mint your first API key
+
+On `/keys`:
+
+1. Click **Mint a new key** at the top of the page.
+2. Choose:
+   - **Type**: `publishable (pk_)` for the SDK → embedded in your browser bundle.
+   - **Environment**: `test` (live unlocks after approval).
+   - **Name** (optional): something like `Local dev` or `Acme web prod`.
+3. Click **Mint**. The plaintext key appears in an amber banner. **Copy it immediately** — it's never shown again. Save in a password manager.
+4. Repeat for `secret (sk_)` — your backend will use this one.
+
+You should now have two keys in your password manager:
+
+```
+NEXT_PUBLIC_FIBO_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FIBO_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+:::warning Never ship `sk_*` to the browser
+The `pk_*` is safe in your frontend bundle — it's scoped to publishable actions. The `sk_*` is server-side ONLY: refunds, key rotation, tenant-wide listings. The SDK validates at construction time and throws if you try to pass an `sk_*` key.
+:::
+
+## Step 2 — Install the SDK
+
+In your React project:
+
+```bash
+npm install @fibo/react-sdk --legacy-peer-deps
+```
+
+The `--legacy-peer-deps` is a temporary Privy v2 peer-deps workaround. Will be removed in a future SDK release.
+
+:::info Tarball install during PoC
+Public npm publication ships post-M5. Today the SDK is distributed as a pinned tarball URL. The exact tarball URL is shown on your dashboard's SDK install page (M5.6 — adding it next).
+:::
+
+## Step 3 — Wire `FiboProvider`
+
+Wrap your app once at the top level:
+
+<Tabs>
+  <TabItem value="nextjs-app" label="Next.js App Router" default>
+    ```tsx
+    // app/layout.tsx
+    import { FiboProvider } from '@fibo/react-sdk';
+
+    export default function RootLayout({ children }: { children: React.ReactNode }) {
+      return (
+        <html>
+          <body>
+            <FiboProvider publishableKey={process.env.NEXT_PUBLIC_FIBO_PUBLISHABLE_KEY!}>
+              {children}
+            </FiboProvider>
+          </body>
+        </html>
+      );
+    }
+    ```
+  </TabItem>
+  <TabItem value="vite" label="Vite + React">
+    ```tsx
+    // src/main.tsx
+    import { FiboProvider } from '@fibo/react-sdk';
+
+    createRoot(document.getElementById('root')!).render(
+      <FiboProvider publishableKey={import.meta.env.VITE_FIBO_PUBLISHABLE_KEY}>
+        <App />
+      </FiboProvider>,
+    );
+    ```
+  </TabItem>
+</Tabs>
+
+That's it for the wrapping. Privy is configured automatically (you don't install `@privy-io/react-auth` separately — it's a transitive dep of the SDK).
+
+## Step 4 — Make your first API call
+
+The simplest call: read your tenant info via the typed client.
+
+```tsx
+import { useFiboApi, useFiboAuth } from '@fibo/react-sdk';
+
+function FirstCall() {
+  const { isAuthenticated, login } = useFiboAuth();
+  const api = useFiboApi();
+  const [health, setHealth] = useState<{ ok: boolean } | null>(null);
+
+  if (!isAuthenticated) return <button onClick={login}>Sign in with Fibo</button>;
+
+  return (
+    <button onClick={async () => setHealth(await api.health())}>
+      Ping Fibo {health ? `→ ${health.ok ? 'OK' : 'KO'}` : ''}
+    </button>
+  );
+}
+```
+
+When you click "Sign in with Fibo", Privy opens its modal in your app, the user signs in (email magic link / Google / Apple), and an embedded wallet is provisioned automatically.
+
+After "Ping Fibo" returns, head back to your **dashboard** → **Usage** — the `active_users` counter should now show `1`. You've successfully connected your app to Fibo.
+
+## Step 5 — Configure a webhook (optional but recommended)
+
+For production, you need a webhook endpoint to react to events like `tx.submitted`, `tx.failed`, eventually `wallet.created` and `tx.confirmed`.
+
+1. On the dashboard → **Webhooks** → **Register a new endpoint**.
+2. **URL**: an HTTPS endpoint on your server. For local development, use [ngrok](https://ngrok.com) or [Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/) to expose `localhost:3000`.
+3. **Events**: leave as `*` (subscribe to all) or use globs like `tx.*,wallet.*`.
+4. **Environment**: `test`.
+5. Click **Register endpoint**.
+
+The signing secret appears in an amber banner — copy it. Use it in your handler:
+
+```ts
+// Express example — see /docs/authentication/webhook-signatures
+import { verifyFiboSignature } from '@fibo/react-sdk/server';
+
+app.post('/fibo/webhooks',
+  verifyFiboSignature(process.env.FIBO_WEBHOOK_SECRET!),
+  (req, res) => {
+    switch (req.body.event_type) {
+      case 'tx.submitted':  /* update UI */    break;
+      case 'tx.failed':     /* show error */   break;
+      case 'tx.prepared':   /* loading state */ break;
+    }
+    res.sendStatus(204);
+  }
+);
+```
+
+See the [Handling webhooks](/docs/guides/handling-webhooks) guide for idempotency, retry semantics, and rotation.
+
+## What you have now
+
+After completing the steps above:
+
+1. ✅ A Fibo account in **sandbox mode** with `pk_test_*` and `sk_test_*` keys
+2. ✅ The SDK installed and `FiboProvider` wrapping your app
+3. ✅ Your first authenticated user (visible in dashboard → Usage)
+4. ✅ A webhook endpoint receiving real events
+
+You can now build your full integration in sandbox without any rate limits or restrictions.
+
+## What's next
+
+- **Apply for live mode**: your dashboard shows the sandbox banner until the Fibo team approves you (2-3 business days). Once approved, you can mint `pk_live_*` / `sk_live_*` keys and ship to production.
+- **Walk through a swap end-to-end**: [First swap guide](/docs/guides/first-swap)
+- **Understand the auth flow**: [Authentication overview](/docs/authentication/api-keys)
+- **Understand the webhook lifecycle**: [Handling webhooks](/docs/guides/handling-webhooks)
+- **See every endpoint**: [API Reference](/docs/api-reference/introduction)
+- **Sandbox vs live mode** — [what's the difference](/docs/getting-started/sandbox-vs-live)

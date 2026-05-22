@@ -1,0 +1,94 @@
+---
+title: Sandbox vs Live
+description: How Fibo separates test keys from production. What you can do in sandbox without approval, what unlocks after the Fibo team reviews your application.
+sidebar_position: 2
+---
+
+Fibo separates **test mode** (sandbox) from **live mode** (production) via the API key infix:
+
+- `pk_test_*` / `sk_test_*` — sandbox. **Available immediately** upon signup.
+- `pk_live_*` / `sk_live_*` — production. **Gated** behind manual approval.
+
+This page explains exactly what's different between the two, and what triggers the unlock.
+
+## What you can do in sandbox
+
+Once you submit the [onboarding form](https://dashboard.fibo-crypto.fr/onboarding/apply), you immediately get:
+
+| Surface | Available in sandbox? |
+|---|---|
+| Mint / revoke / rotate `pk_test_*` and `sk_test_*` keys | ✅ Yes |
+| Register webhook endpoints with `environment: 'test'` | ✅ Yes |
+| Receive webhook events for test transactions | ✅ Yes |
+| Make API calls (`/v1/quote`, `/v1/prepare-tx`, etc.) using test keys | ✅ Yes |
+| See your `/transactions`, `/usage`, `/team` pages in the dashboard | ✅ Yes |
+| Invite teammates (tenant_member role) | ✅ Yes |
+| Mint `pk_live_*` or `sk_live_*` keys | ❌ Gated until approval |
+| Register webhooks with `environment: 'live'` | ❌ Gated until approval |
+| Receive webhooks for live transactions | ❌ Gated until approval |
+
+This means **you can build your entire integration in sandbox** without waiting on us. Wire the SDK, set up your webhook handler, validate the full flow end-to-end. The only thing missing is real-money traffic.
+
+## What happens in test mode under the hood
+
+When you call `POST /v1/quote` with a `pk_test_*`:
+
+- Fibo's backend routes the request through LiFi's testnet aggregator where applicable.
+- Returned `quote_id` is valid; you can call `prepare-tx`, `submit`, `execute-signed-quote` as in production.
+- No real funds move. The user signs an EIP-7702 authorization but the gas tank used is a **test sponsor**, not your live billing account.
+- Webhooks are delivered to your test endpoint — same signature scheme as live.
+
+Practically: test mode is a faithful replica of the live flow, minus the on-chain settlement.
+
+## What unlocks after approval
+
+Once a Fibo super_admin approves your application (2-3 business days):
+
+- Your `tenant.status` flips from `pending` → `active`.
+- The dashboard's sandbox banner disappears.
+- The Environment dropdown on `/keys` and `/webhooks` exposes the `live` option.
+- You can mint `pk_live_*` / `sk_live_*` keys.
+- You can register live webhook endpoints.
+- API calls with a live key route through the production gas tank and real LiFi mainnet routes.
+
+You receive an email from `noreply@fibo-crypto.fr` when this happens *(M5.6 — coming)*.
+
+## What if my application is rejected?
+
+If the Fibo team rejects your application (rare — we usually have a back-and-forth via `support@fibo-crypto.fr` first), you'll see `/onboarding/cancelled` on your next login with the reason captured by the reviewer.
+
+In this state:
+
+- Your existing test keys are **frozen** at the auth layer. API requests using them return `403 tenant_frozen`.
+- The same applies to test webhooks: events stop firing.
+- You can re-apply, but only after contacting support and addressing the rejection reason.
+
+This is intentional: cancelled = a clean dead-end, not "you can keep building in test forever". If you genuinely have a use case we initially misunderstood, reach out and we'll re-open.
+
+## Switching between environments in your code
+
+Both test and live keys hit the **same API base URL** (`https://api.fibo-crypto.fr` once DNS lands — today the long `*.ecs.eu-west-3.on.aws` URL). The backend reads the key infix to scope the request:
+
+```ts
+// Same SDK, different key
+const fiboTest = createFiboClient({ apiKey: 'pk_test_xxx' });
+const fiboLive = createFiboClient({ apiKey: 'pk_live_xxx' });
+
+// Both hit api.fibo-crypto.fr; backend routes based on the infix.
+```
+
+Typical pattern: read the key from an environment variable per deployment (`development` → `pk_test_*`, `production` → `pk_live_*`).
+
+## FAQ
+
+**Can I mint a `sk_live_*` before my application is approved?**
+No. The backend returns `403 tenant_not_approved` on `POST /v1/api-keys` with `environment: 'live'` until your tenant is `active`. Same for live webhook endpoints.
+
+**Can I have both test and live integrations running at the same time?**
+Yes. You'd typically have a `pk_test_*` in your staging environment and a `pk_live_*` in your production environment. They're independent — separate API key rows, separate webhook endpoints, separate transaction streams.
+
+**Do test webhooks affect my usage counters?**
+Yes — both test and live calls increment the same `saas_usage_counters` row for the tenant. We don't separate test vs live in the usage table. If you want to filter, query `/v1/transactions?status=...` and inspect each transaction (we expose the `environment` of the key used).
+
+**What if I revoke an approved key — can I mint a new live key?**
+Yes. Revoking a key doesn't affect your tenant's `active` status. Revoke + re-mint is a standard rotation.

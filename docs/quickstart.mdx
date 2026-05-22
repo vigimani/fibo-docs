@@ -7,8 +7,8 @@ sidebar_position: 2
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 
-:::info Pre-release
-This quickstart targets the production-shape API. Self-serve key minting and the npm package are still in flight — see [/docs/status](/docs/status) for what's wired today vs. shipping in M2/M5. The white-glove onboarding path delivers `pk_test_*` + `sk_test_*` + a tarball SDK within 1 business day; [contact sales](https://fibo-crypto.fr/contact).
+:::tip Self-serve is live
+Sign up at [dashboard.fibo-crypto.fr](https://dashboard.fibo-crypto.fr) and start integrating in sandbox immediately — no waiting on us. Live mode unlocks after manual review (2-3 business days). See [Getting Started](/docs/getting-started) for the full walkthrough.
 :::
 
 ## Before you start
@@ -22,7 +22,7 @@ You'll need:
 - **A React framework** — Next.js (Pages or App router), Vite + React, Remix, Astro with `client:only="react"`, or plain React (CRA / similar). See [Frameworks](/docs/sdk/installation#frameworks).
 - **A package manager** — npm, pnpm, or yarn. All three are tested.
 - **A server endpoint** for receiving Fibo webhooks. HTTPS-only — Fibo refuses to deliver to `http://`. For prototyping, an ngrok / Cloudflare Tunnel URL works.
-- **A Fibo API key pair** (`pk_test_*` + `sk_test_*`). Currently issued during onboarding — [contact sales](https://fibo-crypto.fr/contact). Self-serve provisioning is in flight.
+- **A Fibo account** — sign up at [dashboard.fibo-crypto.fr/onboarding/apply](https://dashboard.fibo-crypto.fr/onboarding/apply). Sandbox access is granted immediately on submission; you can complete steps 1-4 below without waiting for live-mode approval.
 
 If you're starting from a blank Next.js app:
 
@@ -33,31 +33,35 @@ cd my-fibo-app
 
 Skip this if you have an existing project.
 
-## 1. Get your API keys
+## 1. Mint your API keys from the dashboard
 
-Two key types are issued per environment (`test` and `live`):
+Sign in at [dashboard.fibo-crypto.fr](https://dashboard.fibo-crypto.fr) → **API Keys** → **Mint a new key**. Two key types are issued per environment (`test` and `live`):
 
-- **`pk_<env>_…`** — *publishable* key. Embedded in the browser bundle, safe to expose. Used by the SDK to authenticate the user via Privy and to call read-only endpoints.
+- **`pk_<env>_…`** — *publishable* key. Embedded in the browser bundle, safe to expose. Used by the SDK to authenticate users and to call browser-callable endpoints.
 - **`sk_<env>_…`** — *secret* key. Server-side only. Used by your backend to call privileged endpoints (refunds, user listing, webhook secret rotation).
 
+For this quickstart, mint **one `pk_test_*` and one `sk_test_*`** — both visible in plaintext only at the moment of creation (the dashboard shows them in an amber banner you can copy from).
+
 ```bash
-# Example — your actual keys arrive over a secure channel during onboarding
-FIBO_PUBLISHABLE_KEY=pk_test_xxx
+# Put them in your .env.local — never commit
+NEXT_PUBLIC_FIBO_PUBLISHABLE_KEY=pk_test_xxx
 FIBO_SECRET_KEY=sk_test_xxx
 ```
 
 :::note
-**Never** ship `sk_…` to the browser. The SDK never asks for it. If you spot one in a frontend bundle, rotate it immediately via [`POST /v1/api-keys/{id}/rotate`](/docs/api-reference/introduction).
+**Never** ship `sk_…` to the browser. The SDK validates at construction time and throws if you try (`pk_*` only on the frontend). If you spot an `sk_*` in a frontend bundle, revoke and rotate from the dashboard immediately.
 :::
 
 ## 2. Install the SDK
 
 ```bash
-npm install @fibo/react-sdk
+npm install @fibo/react-sdk --legacy-peer-deps
 ```
 
-:::info Pre-release
-The npm package is published to a private registry today; public npm publication targets M5. Onboarding gives you a pinned tarball URL you can use in `package.json` as `"@fibo/react-sdk": "https://cdn.fibo-crypto.fr/sdk/..."`. Drop-in replacement when the public package ships.
+:::info Tarball install during PoC
+Public npm publication ships post-M5. Today the SDK is distributed as a pinned tarball URL — paste it into your `package.json` as `"@fibo/react-sdk": "https://cdn.fibo-crypto.fr/sdk/react-sdk-0.x.y.tgz"`. The tarball URL is shown in your dashboard's SDK install page. Drop-in replacement when the public package ships.
+
+The `--legacy-peer-deps` flag works around a Privy v2 peer-deps quirk; will go away in a future SDK release.
 :::
 
 The SDK has Privy as a transitive dependency — you don't need to install or configure Privy yourself.
